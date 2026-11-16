@@ -12,12 +12,30 @@ public static class WorkFolders
     private const UnixFileMode OwnerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
 
     private static readonly Lazy<string> RootFolder = new(FindRoot);
+    private static string? _rootOverride;
 
     /// <summary>
     /// %TEMP%\Filee on Windows; on Linux $XDG_CACHE_HOME/filee (~/.cache/filee), on macOS ~/Library/Caches/Filee,
-    /// made with mode 700 the first time it is asked for.
+    /// made with mode 700 the first time it is asked for. A server host may pin the root inside its own workspace.
     /// </summary>
-    public static string Root => RootFolder.Value;
+    public static string Root => Volatile.Read(ref _rootOverride) ?? RootFolder.Value;
+
+    /// <summary>
+    /// Pins all job work folders to <paramref name="root"/>. Intended for the Web host, which must not write
+    /// outside its workspace; desktop callers never invoke it and keep the platform default.
+    /// </summary>
+    public static void SetRootOverride(string root)
+    {
+        if (string.IsNullOrWhiteSpace(root))
+            throw new ArgumentException("Work root is required.", nameof(root));
+
+        var fullPath = Path.GetFullPath(root);
+        if (OperatingSystem.IsWindows())
+            Directory.CreateDirectory(fullPath);
+        else
+            MakePrivate(fullPath);
+        Volatile.Write(ref _rootOverride, fullPath);
+    }
 
     private static string FindRoot()
     {

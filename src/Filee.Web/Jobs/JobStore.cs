@@ -1,0 +1,120 @@
+using System.Globalization;
+using Microsoft.Data.Sqlite;
+
+namespace Filee.Web.Jobs;
+
+/// <summary>
+/// Minimal SQLite persistence for Web job summaries. Paths, file names and error details are deliberately absent.
+/// </summary>
+public sealed class JobStore
+{
+    private const string CreateSql = """
+        CREATE TABLE IF NOT EXISTS jobs (
+            web_id TEXT PRIMARY KEY,
+            internal_id TEXT NOT NULL,
+            tid TEXT NOT NULL,
+            sub TEXT NOT NULL,
+            target TEXT NOT NULL,
+            status TEXT NOT NULL,
+            progress REAL NOT NULL,
+            created_at TEXT NOT NULL,
+            finished_at TEXT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_jobs_owner ON jobs(tid, sub);
+        """;
+
+    private readonly string _connectionString;
+
+    public JobStore(string databasePath)
+    {
+        var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath));
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
+        _connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath, Pooling = true }.ToString();
+
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = CreateSql;
+        command.ExecuteNonQuery();
+    }
+
+    public void Upsert(JobRecord record)
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO jobs (web_id, internal_id, tid, sub, target, status, progress, created_at, finished_at)
+            VALUES ($webId, $internalId, $tid, $sub, $target, $status, $progress, $createdAt, $finishedAt)
+            ON CONFLICT(web_id) DO UPDATE SET
+                internal_id = excluded.internal_id,
+                tid = excluded.tid,
+                sub = excluded.sub,
+                target = excluded.target,
+                status = excluded.status,
+                progress = excluded.progress,
+                created_at = excluded.created_at,
+                finished_at = excluded.finished_at;
+            """;
+        AddParameters(command, record);
+        command.ExecuteNonQuery();
+    }
+
+    public JobRecord? Get(string webId)
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM jobs WHERE web_id = $webId;";
+        command.Parameters.AddWithValue("$webId", webId);
+        using var reader = command.ExecuteReader();
+        return reader.Read() ? ReadRecord(reader) : null;
+    }
+
+    public IReadOnlyList<JobRecord> ForOwner(string tid, string sub)
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM jobs WHERE tid = $tid AND sub = $sub ORDER BY created_at DESC;";
+        command.Parameters.AddWithValue("$tid", tid);
+        command.Parameters.AddWithValue("$sub", sub);
+        using var reader = command.ExecuteReader();
+        var records = new List<JobRecord>();
+        while (reader.Read())
+            records.Add(ReadRecord(reader));
+        return records;
+    }
+
+    private SqliteConnection Open()
+    {
+        var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        return connection;
+    }
+
+    private static void AddParameters(SqliteCommand command, JobRecord record)
+    {
+        command.Parameters.AddWithValue("$webId", record.WebId);
+        command.Parameters.AddWithValue("$internalId", record.InternalId);
+        command.Parameters.AddWithValue("$tid", record.Tid);
+        command.Parameters.AddWithValue("$sub", record.Sub);
+        command.Parameters.AddWithValue("$target", record.Target);
+        command.Parameters.AddWithValue("$status", record.Status);
+        command.Parameters.AddWithValue("$progress", record.Progress);
+        command.Parameters.AddWithValue("$createdAt", Format(record.CreatedAt));
+        command.Parameters.AddWithValue("$finishedAt", record.FinishedAt is { } finished ? Format(finished) : DBNull.Value);
+    }
+
+    private static JobRecord ReadRecord(SqliteDataReader reader) => new(
+        reader.GetString(reader.GetOrdinal("web_id")),
+        reader.GetString(reader.GetOrdinal("internal_id")),
+        reader.GetString(reader.GetOrdinal("tid")),
+        reader.GetString(reader.GetOrdinal("sub")),
+        reader.GetString(reader.GetOrdinal("target")),
+        reader.GetString(reader.GetOrdinal("status")),
+        reader.GetDouble(reader.GetOrdinal("progress")),
+        DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("created_at")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+        reader.IsDBNull(reader.GetOrdinal("finished_at"))
+            ? null
+            : DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("finished_at")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind));
+
+    private static string Format(DateTimeOffset value) => value.ToString("O", CultureInfo.InvariantCulture);
+}

@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\src\Filee.Web\Filee.Web.csproj" />
   </ItemGroup>
 

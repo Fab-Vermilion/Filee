@@ -6,7 +6,7 @@ namespace Filee.Web.Sso;
 /// <summary>Exchanges the one-time authorization code over the configured issuer's token endpoint.</summary>
 public sealed class SsoTokenClient(HttpClient http, SsoOptions options)
 {
-    public async Task<string> ExchangeAsync(string code, string redirectUri)
+    public async Task<string> ExchangeAsync(string code)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{options.Issuer.TrimEnd('/')}/token");
         request.Headers.Authorization = new AuthenticationHeaderValue(
@@ -16,7 +16,7 @@ public sealed class SsoTokenClient(HttpClient http, SsoOptions options)
         {
             ["grant_type"] = "authorization_code",
             ["code"] = code,
-            ["redirect_uri"] = redirectUri,
+            ["redirect_uri"] = options.EffectiveRedirectUri,
             ["client_id"] = options.ClientId,
         });
 

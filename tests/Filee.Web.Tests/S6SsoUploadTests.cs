@@ -29,6 +29,19 @@ public sealed class S6SsoUploadTests
         Assert.True(SsoLandingGuard.IsAllowedTarget(options, "https://client.example.test/app", Issuer));
         Assert.False(SsoLandingGuard.IsAllowedTarget(options, "https://evil.example.test/app", Issuer));
         Assert.False(SsoLandingGuard.IsAllowedTarget(options, "//evil.example.test/app", Issuer));
+        Assert.Equal("https://127.0.0.1:18799/sso", options.EffectiveRedirectUri);
+    }
+
+    [Fact]
+    public async Task SsoTokenClient_UsesRegisteredCallbackAsRedirectUri()
+    {
+        var handler = new TokenCaptureHandler();
+        var options = new SsoOptions(Issuer, Audience, "client", "secret", ["https://client.example.test"]);
+        var client = new SsoTokenClient(new HttpClient(handler), options);
+
+        await client.ExchangeAsync("code-1");
+
+        Assert.Equal("https://127.0.0.1:18799/sso", handler.RedirectUri);
     }
 
     [Fact]
@@ -177,6 +190,26 @@ public sealed class S6SsoUploadTests
                 },
             },
         });
+    }
+
+    private sealed class TokenCaptureHandler : HttpMessageHandler
+    {
+        public string? RedirectUri { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var form = await request.Content!.ReadAsStringAsync(cancellationToken);
+            foreach (var part in form.Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var pair = part.Split('=', 2);
+                if (pair.Length == 2 && pair[0] == "redirect_uri")
+                    RedirectUri = Uri.UnescapeDataString(pair[1]);
+            }
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id_token":"test-token"}""", Encoding.UTF8, "application/json"),
+            };
+        }
     }
 
     private sealed class StubHttpHandler(Func<string> jwks) : HttpMessageHandler

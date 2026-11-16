@@ -121,7 +121,7 @@ app.MapGet("/sso", async Task<IResult> (string? code, string? iss, string? targe
 
     try
     {
-        var idToken = await tokens.ExchangeAsync(code, target);
+        var idToken = await tokens.ExchangeAsync(code);
         var identity = await validator.ValidateAsync(idToken);
         sessions.Issue(context, identity.Tid, identity.Sub);
         return Results.Redirect(target);

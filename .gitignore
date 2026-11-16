@@ -18,6 +18,9 @@ build/.cache/
 *.suo
 *.DotSettings.user
 
+# Local Web development state (uploads, work dirs, output, job database, logs)
+.filee-web/
+
 # Test results
 TestResults/
 *.trx

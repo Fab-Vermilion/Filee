@@ -1,3 +1,5 @@
+using Filee.Web.Contracts;
+
 namespace Filee.Web.Jobs;
 
 /// <summary>Persisted job summary. Internal Filee job ids are stored for mapping only, never returned.</summary>
@@ -18,7 +20,7 @@ public sealed record JobFileSnapshot(
     long Size,
     string Status,
     double Progress,
-    string? Error = null,
+    ApiError? Error = null,
     string? DownloadUrl = null);
 
 public sealed record JobSnapshot(

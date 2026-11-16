@@ -59,6 +59,21 @@ public sealed class JobStore
         command.ExecuteNonQuery();
     }
 
+    public void UpdateSummary(string webId, string status, double progress, DateTimeOffset? finishedAt)
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE jobs SET status = $status, progress = $progress, finished_at = $finishedAt
+            WHERE web_id = $webId;
+            """;
+        command.Parameters.AddWithValue("$webId", webId);
+        command.Parameters.AddWithValue("$status", status);
+        command.Parameters.AddWithValue("$progress", progress);
+        command.Parameters.AddWithValue("$finishedAt", finishedAt is { } value ? Format(value) : DBNull.Value);
+        command.ExecuteNonQuery();
+    }
+
     public JobRecord? Get(string webId)
     {
         using var connection = Open();

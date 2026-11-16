@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Filee 转换服务</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <h1>文件转换</h1>
+      <p id="session-note">正在读取会话…</p>
+    </header>
+
+    <section class="card">
+      <label class="field">
+        <span>目标格式</span>
+        <select id="target"></select>
+      </label>
+
+      <label class="field">
+        <span>选择文件</span>
+        <input id="files" type="file" multiple />
+      </label>
+
+      <div class="actions">
+        <button id="submit" type="button" disabled>开始转换</button>
+        <button id="retry" type="button" hidden>重新进入应用</button>
+      </div>
+      <p id="message" role="status"></p>
+    </section>
+
+    <section class="card">
+      <h2>任务进度</h2>
+      <div id="job-list"></div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

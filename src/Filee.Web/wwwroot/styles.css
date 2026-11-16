@@ -1,0 +1,42 @@
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+  background: #f5f7fa;
+  color: #1f2937;
+}
+
+body { margin: 0; padding: 24px; }
+.shell { max-width: 760px; margin: 0 auto; }
+header { margin-bottom: 18px; }
+h1 { font-size: 24px; margin: 0 0 8px; }
+h2 { font-size: 16px; margin: 0 0 12px; }
+p { margin: 6px 0; color: #4b5563; }
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.field { display: block; margin-bottom: 14px; }
+.field span { display: block; font-size: 13px; margin-bottom: 6px; color: #374151; }
+select, input[type="file"] { width: 100%; padding: 8px; }
+
+.actions { display: flex; gap: 10px; }
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 16px;
+  cursor: pointer;
+  background: #2563eb;
+  color: #ffffff;
+}
+button:disabled { background: #9ca3af; cursor: not-allowed; }
+
+.job { border-top: 1px solid #e5e7eb; padding: 10px 0; }
+.job:first-child { border-top: 0; }
+.bar { height: 6px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin: 8px 0; }
+.bar > span { display: block; height: 100%; background: #2563eb; }
+a { color: #2563eb; }

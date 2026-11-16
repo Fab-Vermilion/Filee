@@ -184,17 +184,19 @@ app.MapGet("/api/jobs/{id}", (string id, HttpContext context, SessionService ses
         return ApiProblem.NotFound();
 
     var job = jobs.Get(id);
+    var outputPath = "";
+    var hasOutput = job is not null && jobs.TryGetOutput(id, out outputPath);
     var files = job is null
         ? []
         : job.Files.Select((file, index) => new JobFileSnapshot(
             $"f{index + 1}",
-            Path.GetFileName(file.SourcePath),
+            DownloadDisplay.Name(Path.GetFileName(file.SourcePath), record.Target, hasOutput ? outputPath : null),
             file.Transfer?.Bytes ?? 0,
             ToFileStatus(file.State),
             file.Progress,
             file.ErrorKey is null ? null : ApiErrorEnvelope.Create("conversion_failed", "转换失败，请重试").Error)).ToArray();
 
-    if (job is not null && jobs.TryGetOutput(id, out _))
+    if (hasOutput)
     {
         var token = tokens.Issue(identity.Tid, identity.Sub, id);
         files = files.Select(file => file with { DownloadUrl = $"/api/download?token={token}" }).ToArray();

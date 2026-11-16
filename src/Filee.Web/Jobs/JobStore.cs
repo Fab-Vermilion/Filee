@@ -84,6 +84,14 @@ public sealed class JobStore
         return reader.Read() ? ReadRecord(reader) : null;
     }
 
+    public long Count()
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM jobs;";
+        return (long)(command.ExecuteScalar() ?? 0L);
+    }
+
     public IReadOnlyList<JobRecord> ForOwner(string tid, string sub)
     {
         using var connection = Open();

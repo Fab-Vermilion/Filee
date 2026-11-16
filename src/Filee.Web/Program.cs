@@ -7,6 +7,7 @@ using Filee.Engines.Infrastructure;
 using Filee.Web.Contracts;
 using Filee.Web.Conversion;
 using Filee.Web.Jobs;
+using Filee.Web.Observability;
 using Filee.Web.Security;
 using Filee.Web.Sso;
 using Filee.Web.Streaming;
@@ -32,11 +33,12 @@ var converters = WebConversionAssembly.CreateConverters(engineEnvironment);
 var catalog = new ConverterCatalog(converters);
 var queue = new JobQueue(catalog);
 var registry = new WebJobRegistry();
+var limits = WebLimits.FromEnvironment();
 var progress = new ProgressHub();
-var sseOptions = new SseOptions();
+var sseOptions = new SseOptions(limits.SseBufferSize, limits.SseThrottleMs, limits.SseHeartbeatSeconds);
 var downloadTokens = new DownloadTokenService();
 var jobStore = new JobStore(storage.Database);
-var concurrencyGate = new WebConcurrencyGate(4);
+var concurrencyGate = new WebConcurrencyGate(limits.MaxConcurrency);
 var ssoOptions = SsoOptions.FromEnvironment();
 var ssoHttp = new HttpClient();
 var jwks = new JwksProvider(ssoHttp, ssoOptions.Issuer);
@@ -64,7 +66,9 @@ builder.Services.AddSingleton(progress);
 builder.Services.AddSingleton(sseOptions);
 builder.Services.AddSingleton(downloadTokens);
 builder.Services.AddSingleton<JobCancelService>();
-builder.Services.AddSingleton(new JobSubmissionService(storage, jobStore, registry, progress, concurrencyGate, job => queue.RunAsync(job)));
+builder.Services.AddSingleton(new JobSubmissionService(
+    storage, jobStore, registry, progress, concurrencyGate, job => queue.RunAsync(job), new UploadLimits(limits.MaxFileBytes)));
+builder.Services.AddSingleton(new OpsHealthService(storage, jobStore, concurrencyGate));
 builder.Services.AddSingleton(targetPlanner);
 builder.Services.AddSingleton(formatCatalog);
 builder.Services.AddSingleton(ssoOptions);
@@ -96,6 +100,14 @@ queue.JobFinished += (_, job) =>
 };
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+
+app.MapGet("/api/ops/health", async Task<IResult> (HttpContext context, OpsHealthService ops) =>
+{
+    var expected = Environment.GetEnvironmentVariable("FILEE_WEB_OPS_TOKEN");
+    if (string.IsNullOrEmpty(expected) || context.Request.Headers["X-Ops-Token"].ToString() != expected)
+        return ApiProblem.Unauthenticated();
+    return Results.Ok(await ops.GetAsync());
+});
 
 app.MapGet("/sso", async Task<IResult> (string? code, string? iss, string? target_link_uri, HttpContext context,
     SsoOptions options, SsoTokenClient tokens, OidcTokenValidator validator, SessionService sessions) =>

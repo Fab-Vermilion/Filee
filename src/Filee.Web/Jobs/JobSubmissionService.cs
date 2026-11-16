@@ -17,7 +17,8 @@ public sealed class JobSubmissionService(
     WebJobRegistry registry,
     ProgressHub hub,
     WebConcurrencyGate gate,
-    Func<ConversionJob, Task> runner)
+    Func<ConversionJob, Task> runner,
+    UploadLimits? defaultLimits = null)
 {
     public WebStoragePaths Storage { get; } = storage;
 
@@ -28,6 +29,7 @@ public sealed class JobSubmissionService(
         bool hasOptions,
         UploadLimits? limits = null)
     {
+        limits ??= defaultLimits ?? new UploadLimits();
         if (hasOptions)
             throw new UploadException("unsupported_option");
         if (files.Count == 0)

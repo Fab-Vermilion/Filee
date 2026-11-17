@@ -16,36 +16,43 @@
           <p id="session-note" class="subtle">正在读取会话…</p>
         </div>
       </div>
+      <a href="/manual.html" class="ghost back-link">使用手册</a>
     </header>
 
     <section class="card workspace">
-      <div class="donut-pane">
-        <h2 class="pane-title">选择目标格式</h2>
-        <div id="category-list" class="chips" role="tablist" aria-label="格式分类"></div>
-        <div id="donut" class="donut-wrap" role="group" aria-label="目标格式选择"></div>
-        <p class="target-line">当前目标：<strong id="target-label">加载中…</strong></p>
-        <label class="sr-only" for="target">目标格式</label>
-        <select id="target" class="sr-only" aria-label="目标格式（键盘可访问）"></select>
-      </div>
-
+      <!-- 第一步：文件 -->
       <div class="upload-pane">
-        <h2 class="pane-title">添加文件</h2>
+        <h2 class="pane-title"><span class="step">1</span> 添加文件</h2>
         <label id="dropzone" class="dropzone" for="files">
           <span class="drop-icon" aria-hidden="true">＋</span>
           <span class="drop-text">点击选择或拖入文件</span>
-          <span class="drop-hint">支持批量</span>
+          <span class="drop-hint">支持批量 · 多个文件转为同一种目标格式</span>
           <input id="files" type="file" multiple />
         </label>
-        <div class="actions">
-          <button id="submit" type="button" disabled>开始转换</button>
-          <button id="retry" type="button" class="ghost" hidden>重新进入应用</button>
-        </div>
+        <div id="file-list" class="file-list"></div>
+        <button id="add-more" type="button" class="ghost" hidden>＋ 继续添加文件</button>
         <p id="message" role="status"></p>
+      </div>
+
+      <!-- 第二步：格式 -->
+      <div class="donut-pane">
+        <h2 class="pane-title"><span class="step">2</span> 选择目标格式</h2>
+        <p id="format-hint" class="hint">先添加文件，系统会检测格式并列出可转换的目标。</p>
+        <div id="category-list" class="chips" role="tablist" aria-label="可转换的目标分类"></div>
+        <div id="donut" class="donut-wrap" role="group" aria-label="目标格式选择"></div>
+        <p class="target-line">当前目标：<strong id="target-label">待选择</strong></p>
+        <label class="sr-only" for="target">目标格式</label>
+        <select id="target" class="sr-only" aria-label="目标格式（键盘可访问）"></select>
       </div>
     </section>
 
+    <div class="submit-row">
+      <button id="submit" type="button" disabled>开始转换</button>
+      <button id="retry" type="button" class="ghost" hidden>重新进入应用</button>
+    </div>
+
     <section class="card">
-      <h2 class="pane-title">任务进度</h2>
+      <h2 class="pane-title"><span class="step">3</span> 任务进度</h2>
       <div id="job-list"></div>
     </section>
   </main>

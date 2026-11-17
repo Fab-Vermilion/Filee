@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>使用手册 · Filee</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .manual-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 2vw; }
+    @media (max-width: 720px) { .manual-layout { grid-template-columns: 1fr; } }
+    .manual-nav { position: sticky; top: 2vw; align-self: start; }
+    .manual-nav a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--text-secondary); text-decoration: none; font-size: 13px; }
+    .manual-nav a:hover { background: var(--surface-1); color: var(--text-primary); }
+    .manual-content h2 { font-size: 18px; margin: 0 0 12px; }
+    .manual-content h3 { font-size: 15px; margin: 20px 0 8px; }
+    .manual-content p, .manual-content li { font-size: 13px; line-height: 1.7; color: var(--text-secondary); }
+    .placeholder { border-left: 3px solid var(--border-accent); padding: 6px 12px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">◉</span>
+        <div><h1>使用手册</h1><p id="session-note" class="subtle">Filee 文件转换服务</p></div>
+      </div>
+      <a href="/" class="ghost back-link">← 返回转换</a>
+    </header>
+
+    <div class="manual-layout">
+      <nav class="card manual-nav" aria-label="手册目录">
+        <a href="#intro">功能介绍</a>
+        <a href="#formats">可转换类型</a>
+        <a href="#howto">使用方法</a>
+        <a href="#thirdparty">第三方协议</a>
+      </nav>
+      <article class="card manual-content">
+        <h2 id="intro">功能介绍</h2>
+        <p class="placeholder">占位：介绍本服务用于文件类型转换，服务器端运行，经 WorkBuddy 自建菜单免登进入。开发定型后统一编写。</p>
+
+        <h2 id="formats">可转换类型</h2>
+        <p class="placeholder">占位：列出支持的源格式与目标格式分类（图片/PDF/文档/表格/演示/文本/音视频/压缩包等）。实际以页面“可转换目标”为准。</p>
+
+        <h2 id="howto">使用方法</h2>
+        <h3>批量转换</h3>
+        <p class="placeholder">占位：① 添加文件（可“继续添加”，单批最多 20 个）→ ② 系统检测格式，列出所有文件共同可转换的目标分类 → ③ 点击分类，选择目标格式 → ④ 开始转换 → ⑤ 在任务进度中逐个下载结果。</p>
+        <h3>登录态失效</h3>
+        <p class="placeholder">占位：401 时页面会请求客户端重新免登；未恢复可从菜单重新进入。</p>
+
+        <h2 id="thirdparty">第三方协议</h2>
+        <p class="placeholder">占位：列出所用外部引擎及其许可证（FFmpeg、Ghostscript、LibreOffice、ExifTool 等），具体条款开发定型后统一编写。</p>
+      </article>
+    </div>
+  </main>
+</body>
+</html>

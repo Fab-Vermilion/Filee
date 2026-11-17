@@ -83,6 +83,20 @@ public sealed class S5ProgressDownloadTests
         Assert.False(tokens.TryResolve(token, "tenant-2", "user-1", out _));
     }
 
+    [Fact]
+    public void DownloadTokenService_BindsEachTokenToItsOwnOutputPath()
+    {
+        var tokens = new DownloadTokenService();
+        var first = tokens.Issue("tenant-1", "user-1", "job-1", "/out/job-1/first.pdf");
+        var second = tokens.Issue("tenant-1", "user-1", "job-1", "/out/job-1/second.pdf");
+
+        Assert.True(tokens.TryResolvePath(first, "tenant-1", "user-1", out var firstPath));
+        Assert.True(tokens.TryResolvePath(second, "tenant-1", "user-1", out var secondPath));
+        Assert.Equal("/out/job-1/first.pdf", firstPath);
+        Assert.Equal("/out/job-1/second.pdf", secondPath);
+        Assert.NotEqual(first, second);
+    }
+
     private static string DataStatus(SseEvent sseEvent)
     {
         using var document = JsonDocument.Parse(sseEvent.Data);

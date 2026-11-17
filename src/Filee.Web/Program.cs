@@ -54,9 +54,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
+builder.Services.AddSingleton(storage);
+builder.Services.AddHostedService<JobDirectoryCleaner>();
 builder.Services.AddSingleton<SessionService>();
 builder.Services.AddSingleton<CsrfService>();
-builder.Services.AddSingleton(storage);
 builder.Services.AddSingleton(jobStore);
 builder.Services.AddSingleton(concurrencyGate);
 builder.Services.AddSingleton(catalog);
@@ -91,9 +92,11 @@ queue.JobFinished += (_, job) =>
 {
     if (!registry.TryGetWebId(job.Id, out var webId))
         return;
-    var output = job.Outputs.FirstOrDefault(File.Exists);
-    if (output is not null)
-        registry.SetOutput(webId, output);
+    // Index-aligned with job.Files: each source file's own first existing output.
+    var outputs = job.Files
+        .Select(f => f.Outputs.FirstOrDefault(File.Exists) ?? "")
+        .ToArray();
+    registry.SetOutputs(webId, outputs);
     var status = JobStatusMapper.ToApi(job.State);
     progress.Publish(webId, status, job.Progress, force: true);
     jobStore.UpdateSummary(webId, status, job.Progress, DateTimeOffset.UtcNow);
@@ -184,23 +187,23 @@ app.MapGet("/api/jobs/{id}", (string id, HttpContext context, SessionService ses
         return ApiProblem.NotFound();
 
     var job = jobs.Get(id);
-    var outputPath = "";
-    var hasOutput = job is not null && jobs.TryGetOutput(id, out outputPath);
     var files = job is null
         ? []
-        : job.Files.Select((file, index) => new JobFileSnapshot(
-            $"f{index + 1}",
-            DownloadDisplay.Name(Path.GetFileName(file.SourcePath), record.Target, hasOutput ? outputPath : null),
-            file.Transfer?.Bytes ?? 0,
-            ToFileStatus(file.State),
-            file.Progress,
-            file.ErrorKey is null ? null : ApiErrorEnvelope.Create("conversion_failed", "转换失败，请重试").Error)).ToArray();
-
-    if (hasOutput)
-    {
-        var token = tokens.Issue(identity.Tid, identity.Sub, id);
-        files = files.Select(file => file with { DownloadUrl = $"/api/download?token={token}" }).ToArray();
-    }
+        : job.Files.Select((file, index) =>
+        {
+            var hasOutput = jobs.TryGetOutput(id, index, out var outputPath);
+            var downloadUrl = hasOutput
+                ? $"/api/download?token={tokens.Issue(identity.Tid, identity.Sub, id, outputPath)}"
+                : null;
+            return new JobFileSnapshot(
+                $"f{index + 1}",
+                DownloadDisplay.Name(Path.GetFileName(file.SourcePath), record.Target, hasOutput ? outputPath : null),
+                file.Transfer?.Bytes ?? 0,
+                ToFileStatus(file.State),
+                file.Progress,
+                file.ErrorKey is null ? null : ApiErrorEnvelope.Create("conversion_failed", "转换失败，请重试").Error,
+                downloadUrl);
+        }).ToArray();
 
     return Results.Ok(JobSnapshot.From(record) with { Files = files });
 });
@@ -255,9 +258,10 @@ app.MapGet("/api/download", (string? token, HttpContext context, SessionService 
         return ApiProblem.Unauthenticated();
     if (string.IsNullOrEmpty(token))
         return ApiProblem.InvalidToken();
-    if (!tokens.TryResolve(token, identity.Tid, identity.Sub, out var jobId))
+    if (!tokens.TryResolve(token, identity.Tid, identity.Sub, out _))
         return ApiProblem.Forbidden();
-    if (!jobs.TryGetOutput(jobId, out var path) || !File.Exists(path))
+    // Each token pins the exact output it was issued for, so a batch's N links resolve to N files.
+    if (!tokens.TryResolvePath(token, identity.Tid, identity.Sub, out var path) || !File.Exists(path))
         return ApiProblem.Expired();
 
     return Results.File(path, "application/octet-stream", Path.GetFileName(path));

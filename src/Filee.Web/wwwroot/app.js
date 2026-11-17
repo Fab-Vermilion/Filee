@@ -3,18 +3,24 @@ const state = {
   target: "",
   jobs: new Map(),
   reloading: false,
-  groups: new Map(),   // category -> [format]
+  formats: [],          // 全部 FormatDescriptor
+  byId: new Map(),      // id -> descriptor
+  files: [],            // [{name, size, sourceId, targets}]
+  commonTargets: [],    // 所有文件 targets 的交集
   category: "",
 };
 
 const elements = {
   sessionNote: document.querySelector("#session-note"),
+  formatHint: document.querySelector("#format-hint"),
   target: document.querySelector("#target"),
   targetLabel: document.querySelector("#target-label"),
   categoryList: document.querySelector("#category-list"),
   donut: document.querySelector("#donut"),
   files: document.querySelector("#files"),
   dropzone: document.querySelector("#dropzone"),
+  fileList: document.querySelector("#file-list"),
+  addMore: document.querySelector("#add-more"),
   submit: document.querySelector("#submit"),
   retry: document.querySelector("#retry"),
   message: document.querySelector("#message"),
@@ -25,17 +31,22 @@ const CATEGORY_LABELS = {
   Image: "图片", Pdf: "PDF", Document: "文档", Spreadsheet: "表格",
   Presentation: "演示", Hwp: "HWP", Text: "文本", Subtitle: "字幕",
   Video: "视频", Audio: "音频", Archive: "压缩包", Data: "数据",
+  Vector: "矢量", Cad: "CAD", Font: "字体", Ebook: "电子书",
+  Model3D: "3D 模型", Geo: "地理数据",
 };
-// 常用在前，避免按字母序把 Data 排到第一位
+const DONUT_MAX = 8;   // 超过则用按钮网格，避免扇区文字重叠
+const MAX_FILES = 20;  // 单批最多文件数（方案约定）
 const CATEGORY_ORDER = ["Image", "Pdf", "Document", "Spreadsheet", "Presentation",
-  "Hwp", "Text", "Subtitle", "Video", "Audio", "Archive", "Data"];
-function categoryRank(category) {
-  const i = CATEGORY_ORDER.indexOf(category);
-  return i < 0 ? CATEGORY_ORDER.length : i;
+  "Hwp", "Text", "Subtitle", "Video", "Audio", "Archive", "Data",
+  "Vector", "Cad", "Font", "Ebook", "Model3D", "Geo"];
+function categoryRank(c) { const i = CATEGORY_ORDER.indexOf(c); return i < 0 ? CATEGORY_ORDER.length : i; }
+function labelOf(c) { return CATEGORY_LABELS[c] || c; }
+function setMessage(t) { elements.message.textContent = t; }
+function humanSize(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
-
-function setMessage(text) { elements.message.textContent = text; }
-function labelOf(category) { return CATEGORY_LABELS[category] || category; }
 
 async function readSession() {
   const response = await fetch("/api/session", { credentials: "same-origin" });
@@ -62,23 +73,16 @@ async function requestRelogin() {
     }
     const requestId = crypto.randomUUID();
     const reply = await new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        window.removeEventListener("message", handler);
-        resolve(null);
-      }, 8000);
+      const timer = setTimeout(() => { window.removeEventListener("message", handler); resolve(null); }, 8000);
       const handler = (event) => {
         if (!isTrustedReloadMessage(event, requestId)) return;
-        clearTimeout(timer);
-        window.removeEventListener("message", handler);
-        resolve(event.data);
+        clearTimeout(timer); window.removeEventListener("message", handler); resolve(event.data);
       };
       window.addEventListener("message", handler);
       window.parent.postMessage({ type: "wb:reload:request", requestId }, "*");
     });
     setMessage(reply && reply.code === 0 ? "刷新成功，请重试当前操作。" : "刷新未完成，请从菜单重新进入。");
-  } finally {
-    state.reloading = false;
-  }
+  } finally { state.reloading = false; }
 }
 
 function isTrustedReloadMessage(event, requestId) {
@@ -88,54 +92,157 @@ function isTrustedReloadMessage(event, requestId) {
   return originOk && event.data.code === 0;
 }
 
-// 按 category 分组：只保留有可写目标格式的分类
 async function loadFormats() {
   const response = await fetch("/api/formats", { credentials: "same-origin" });
   if (!response.ok) return;
   const payload = await response.json();
-  const grouped = new Map();
-  for (const format of payload.formats) {
-    if (!format.writable || !format.category) continue;
-    const bucket = grouped.get(format.category) || [];
-    bucket.push(format);
-    grouped.set(format.category, bucket);
-  }
-  state.groups = grouped;
+  state.formats = payload.formats || [];
+  state.byId = new Map(state.formats.map(f => [f.id.toLowerCase(), f]));
+  // 若用户已选文件，重新计算可转目标
+  if (state.files.length) recomputeTargets();
+}
 
+// 按扩展名识别源格式（用 api/formats 的 extensions 字段）
+function detectSource(name) {
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  for (const f of state.formats) {
+    if (f.extensions && f.extensions.some(e => e.toLowerCase() === ext)) return f;
+  }
+  return null;
+}
+
+// 核心：所有文件 targets 求交集（批量每个文件都要能转）
+function intersectTargets(lists) {
+  if (!lists.length) return [];
+  const sets = lists.map(l => new Set(l));
+  return [...sets[0]].filter(id => sets.every(s => s.has(id)));
+}
+
+function onFilesChanged(fileList) {
+  let added = 0;
+  for (const file of fileList) {
+    if (state.files.length >= MAX_FILES) break;
+    // 同名同大小视为已添加，避免重复
+    if (state.files.some(f => f.name === file.name && f.size === file.size)) continue;
+    const source = detectSource(file.name);
+    state.files.push({
+      file, name: file.name, size: file.size,
+      sourceId: source ? source.id : "",
+      targets: source ? (source.targets || []) : [],
+    });
+    added++;
+  }
+  if (state.files.length >= MAX_FILES && added < fileList.length)
+    setMessage(`单批最多 ${MAX_FILES} 个文件，超出部分已忽略。`);
+  // 清空 input，让"继续添加"能再次选择同一批文件
+  elements.files.value = "";
+  recomputeTargets();
+}
+
+function removeFile(index) {
+  state.files.splice(index, 1);
+  recomputeTargets();
+}
+
+function recomputeTargets() {
+  renderFileList();
+  state.commonTargets = intersectTargets(state.files.map(f => f.targets));
+  const byCategory = new Map();
+  for (const id of state.commonTargets) {
+    const f = state.byId.get(id.toLowerCase());
+    if (!f) continue;
+    const cat = f.category || "Other";
+    const bucket = byCategory.get(cat) || [];
+    bucket.push(id); byCategory.set(cat, bucket);
+  }
+  renderCategories(byCategory);
+
+  // 目标可能因文件变化而失效，重置选择
+  state.target = "";
+  elements.targetLabel.textContent = "待选择";
+  elements.target.innerHTML = "";
+  elements.submit.disabled = true;
+  const categories = [...byCategory.keys()].sort((a, b) => categoryRank(a) - categoryRank(b));
+  elements.formatHint.textContent = state.files.length
+    ? (categories.length ? `已检测 ${state.files.length} 个文件，以下分类可转换。` : "所选文件没有可转换的目标格式。")
+    : "先添加文件，系统会检测格式并列出可转换的目标。";
+  if (categories.length) selectCategory(categories[0]);
+  else { elements.categoryList.innerHTML = ""; renderDonut([]); }
+}
+
+function renderFileList() {
+  elements.fileList.innerHTML = "";
+  state.files.forEach((file, index) => {
+    const row = document.createElement("div");
+    row.className = "file-item";
+    const name = document.createElement("span");
+    name.className = "file-name"; name.textContent = file.name; name.title = file.name;
+    const size = document.createElement("span");
+    size.className = "file-size"; size.textContent = humanSize(file.size);
+    const fmt = document.createElement("span");
+    fmt.className = "file-fmt"; fmt.textContent = file.sourceId ? file.sourceId.toUpperCase() : "未知";
+    const flag = document.createElement("span");
+    if (file.targets.length) { flag.className = "file-flag ok"; flag.textContent = "可转换"; }
+    else { flag.className = "file-flag no"; flag.textContent = "不支持"; }
+    const remove = document.createElement("button");
+    remove.type = "button"; remove.className = "file-remove"; remove.textContent = "×";
+    remove.title = "移除此文件"; remove.setAttribute("aria-label", `移除 ${file.name}`);
+    remove.addEventListener("click", () => removeFile(index));
+    row.append(name, size, fmt, flag, remove);
+    elements.fileList.appendChild(row);
+  });
+  elements.addMore.hidden = state.files.length === 0 || state.files.length >= MAX_FILES;
+}
+
+function renderCategories(byCategory) {
   elements.categoryList.innerHTML = "";
-  const categories = [...grouped.keys()].sort((a, b) => categoryRank(a) - categoryRank(b));
-  for (const category of categories) {
+  const categories = [...byCategory.keys()].sort((a, b) => categoryRank(a) - categoryRank(b));
+  for (const cat of categories) {
     const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "chip";
-    chip.textContent = labelOf(category);
-    chip.setAttribute("role", "tab");
-    chip.dataset.category = category;
-    chip.addEventListener("click", () => selectCategory(category));
+    chip.type = "button"; chip.className = "chip"; chip.setAttribute("role", "tab");
+    chip.textContent = `${labelOf(cat)} (${byCategory.get(cat).length})`;
+    chip.dataset.category = cat;
+    chip.addEventListener("click", () => selectCategory(cat));
     elements.categoryList.appendChild(chip);
   }
-  if (categories.length) selectCategory(categories[0]);
 }
 
 function selectCategory(category) {
   state.category = category;
   for (const chip of elements.categoryList.querySelectorAll(".chip"))
     chip.classList.toggle("on", chip.dataset.category === category);
-  const candidates = (state.groups.get(category) || []).map(f => f.id);
+  const targets = state.commonTargets.filter(id => {
+    const f = state.byId.get(id.toLowerCase());
+    return f && (f.category || "Other") === category;
+  }).sort((a, b) => a.localeCompare(b));
   elements.target.innerHTML = "";
-  for (const id of candidates) {
-    const option = document.createElement("option");
-    option.value = id;
-    option.textContent = id.toUpperCase();
-    elements.target.appendChild(option);
+  for (const id of targets) {
+    const opt = document.createElement("option"); opt.value = id; opt.textContent = id.toUpperCase();
+    elements.target.appendChild(opt);
   }
-  renderDonut(candidates);
-  if (candidates.length) selectTarget(candidates[0]);
-  else { state.target = ""; elements.targetLabel.textContent = "该分类暂无可写目标"; elements.submit.disabled = true; }
+  renderDonut(targets);
+  if (targets.length) selectTarget(targets[0]);
 }
 
-// 甜甜圈：极坐标扇区（移植官方设计稿的 seg 算法），点击扇区选目标格式
+// 甜甜圈：极坐标扇区（移植官方设计稿），只画当前分类下、且在交集中的目标
 function renderDonut(targets) {
+  // 目标过多时甜甜圈扇区文字会重叠，改用清晰的按钮网格
+  if (targets.length > DONUT_MAX) {
+    const grid = document.createElement("div");
+    grid.className = "target-grid";
+    for (const id of targets) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "target-chip" + (id === state.target ? " on" : "");
+      btn.dataset.target = id;
+      btn.textContent = id.toUpperCase();
+      btn.addEventListener("click", () => selectTarget(id));
+      grid.appendChild(btn);
+    }
+    elements.donut.innerHTML = "";
+    elements.donut.appendChild(grid);
+    return;
+  }
   const NS = "http://www.w3.org/2000/svg";
   const C = 120, R2 = 108, R1 = 46;
   const svg = document.createElementNS(NS, "svg");
@@ -161,7 +268,6 @@ function renderDonut(targets) {
       const group = el("g", { class: "seg", "data-target": id });
       group.appendChild(el("path", { d: seg(i, targets.length) }));
       const angle = -Math.PI / 2 + i * 2 * Math.PI / targets.length;
-      // 单目标时文字放在圆环带上方，避免与中心标题/计数重叠
       const [x, y] = targets.length === 1 ? [C, C - (R1 + R2) / 2] : pt((R1 + R2) / 2, angle);
       const text = el("text", { x, y, "text-anchor": "middle", "dominant-baseline": "central" });
       text.textContent = id.toUpperCase();
@@ -171,46 +277,39 @@ function renderDonut(targets) {
     });
   }
   const title = el("text", { x: C, y: C - 4, "text-anchor": "middle", class: "center-title" });
-  title.textContent = labelOf(state.category);
+  title.textContent = labelOf(state.category) || "目标";
   const sub = el("text", { x: C, y: C + 14, "text-anchor": "middle", class: "center-sub" });
-  sub.textContent = targets.length ? `${targets.length} 种目标` : "暂无";
+  sub.textContent = targets.length ? `${targets.length} 种可转` : "无可用";
   svg.append(title, sub);
 
   elements.donut.innerHTML = "";
   elements.donut.appendChild(svg);
-  syncSegSelection();
+  syncSeg();
 }
 
-function syncSegSelection() {
-  for (const seg of elements.donut.querySelectorAll(".seg"))
-    seg.classList.toggle("on", seg.dataset.target === state.target);
+function syncSeg() {
+  for (const segNode of elements.donut.querySelectorAll(".seg, .target-chip"))
+    segNode.classList.toggle("on", segNode.dataset.target === state.target);
 }
 
 function selectTarget(id) {
   state.target = id;
   elements.target.value = id;
   elements.targetLabel.textContent = id.toUpperCase();
-  elements.submit.disabled = !(elements.files.files.length > 0);
-  syncSegSelection();
+  elements.submit.disabled = !(state.files.length && state.target);
+  syncSeg();
 }
 
 async function submitJob() {
-  if (!state.target || elements.files.files.length === 0) {
-    setMessage("请选择目标格式和至少一个文件。");
-    return;
-  }
+  if (!state.target || !state.files.length) { setMessage("请先添加文件并选择目标格式。"); return; }
   const form = new FormData();
   form.append("target", state.target);
-  for (const file of elements.files.files) form.append("files", file);
+  for (const item of state.files) form.append("files", item.file);
   const response = await fetch("/api/jobs", {
     method: "POST", credentials: "same-origin",
     headers: { "X-CSRF-Token": state.csrfToken }, body: form,
   });
-  if (!response.ok) {
-    setMessage("提交失败，请刷新页面重试。");
-    if (response.status === 401) await requestRelogin();
-    return;
-  }
+  if (!response.ok) { setMessage("提交失败，请刷新页面重试。"); if (response.status === 401) await requestRelogin(); return; }
   const payload = await response.json();
   setMessage("任务已创建。");
   trackJob(payload.jobId);
@@ -220,77 +319,52 @@ function trackJob(jobId) {
   state.jobs.set(jobId, { status: "queued", progress: 0 });
   renderJobs();
   const source = new EventSource(`/api/jobs/${jobId}/events`);
-  source.addEventListener("progress", (event) => applyProgress(jobId, event));
-  source.addEventListener("done", async (event) => {
-    applyProgress(jobId, event);
-    source.close();
-    await refreshJob(jobId);
-  });
+  source.addEventListener("progress", (e) => applyProgress(jobId, e));
+  source.addEventListener("done", async (e) => { applyProgress(jobId, e); source.close(); await refreshJob(jobId); });
 }
-
 function applyProgress(jobId, event) {
-  const payload = JSON.parse(event.data);
-  const current = state.jobs.get(jobId) || {};
-  state.jobs.set(jobId, { ...current, status: payload.status, progress: payload.progress });
+  const p = JSON.parse(event.data);
+  const cur = state.jobs.get(jobId) || {};
+  state.jobs.set(jobId, { ...cur, status: p.status, progress: p.progress });
   renderJobs();
 }
-
 async function refreshJob(jobId) {
   const response = await fetch(`/api/jobs/${jobId}`, { credentials: "same-origin" });
   if (!response.ok) return;
   const job = await response.json();
-  const current = state.jobs.get(jobId) || {};
-  state.jobs.set(jobId, { ...current, ...job });
+  state.jobs.set(jobId, { ...(state.jobs.get(jobId) || {}), ...job });
   renderJobs();
 }
-
 function renderJobs() {
   elements.jobs.innerHTML = "";
   for (const [jobId, job] of state.jobs) {
-    const row = document.createElement("div");
-    row.className = "job";
-    const title = document.createElement("div");
-    title.className = "job-title";
-    title.textContent = `${jobId.slice(0, 8)} · ${job.status || "queued"}`;
-    const bar = document.createElement("div");
-    bar.className = "bar";
-    const fill = document.createElement("span");
-    fill.style.width = `${Math.round((job.progress || 0) * 100)}%`;
-    bar.appendChild(fill);
-    row.append(title, bar);
+    const row = document.createElement("div"); row.className = "job";
+    const title = document.createElement("div"); title.className = "job-title";
+    const failed = (job.status || "").toLowerCase() === "failed";
+    title.innerHTML = `${jobId.slice(0, 8)} · ${failed ? '<span class="fail">失败</span>' : (job.status || "queued")}`;
+    const bar = document.createElement("div"); bar.className = "bar";
+    const fill = document.createElement("span"); fill.style.width = `${Math.round((job.progress || 0) * 100)}%`;
+    bar.appendChild(fill); row.append(title, bar);
     for (const file of job.files || []) {
       if (!file.downloadUrl) continue;
-      const link = document.createElement("a");
-      link.href = file.downloadUrl;
-      link.textContent = `下载 ${file.name}`;
+      const link = document.createElement("a"); link.href = file.downloadUrl; link.textContent = `下载 ${file.name}`;
       row.appendChild(link);
     }
     elements.jobs.appendChild(row);
   }
 }
 
-// 拖放
-for (const type of ["dragenter", "dragover"]) elements.dropzone.addEventListener(type, (e) => {
-  e.preventDefault(); elements.dropzone.classList.add("dragover");
-});
-for (const type of ["dragleave", "drop"]) elements.dropzone.addEventListener(type, (e) => {
-  e.preventDefault(); elements.dropzone.classList.remove("dragover");
-});
-elements.dropzone.addEventListener("drop", (e) => {
-  elements.files.files = e.dataTransfer.files;
-  elements.submit.disabled = !state.target || elements.files.files.length === 0;
-});
-elements.files.addEventListener("change", () => {
-  elements.submit.disabled = !state.target || elements.files.files.length === 0;
-});
+// 事件
+for (const t of ["dragenter", "dragover"]) elements.dropzone.addEventListener(t, (e) => { e.preventDefault(); elements.dropzone.classList.add("dragover"); });
+for (const t of ["dragleave", "drop"]) elements.dropzone.addEventListener(t, (e) => { e.preventDefault(); elements.dropzone.classList.remove("dragover"); });
+elements.dropzone.addEventListener("drop", (e) => { onFilesChanged(e.dataTransfer.files); });
+elements.files.addEventListener("change", () => onFilesChanged(elements.files.files));
+elements.addMore.addEventListener("click", () => elements.files.click());
 elements.target.addEventListener("change", () => selectTarget(elements.target.value));
 elements.submit.addEventListener("click", submitJob);
 elements.retry.addEventListener("click", requestRelogin);
 
 (async () => {
-  try {
-    if (await readSession()) await loadFormats();
-  } catch {
-    setMessage("初始化失败，请刷新页面重试。");
-  }
+  try { if (await readSession()) await loadFormats(); }
+  catch { setMessage("初始化失败，请刷新页面重试。"); }
 })();

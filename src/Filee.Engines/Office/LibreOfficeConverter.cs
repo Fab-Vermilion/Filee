@@ -36,7 +36,16 @@ namespace Filee.Engines.Office;
 /// <summary>Word processor, spreadsheet, presentation and drawing conversions (and HWP / HWPX) through LibreOffice.</summary>
 public sealed class LibreOfficeConverter : IConverter
 {
-    private const int Workers = 2;
+    // Each worker owns a LibreOffice profile and starts its own soffice process. On macOS, several
+    // soffice processes starting/stopping in a batch can surface "LibreOffice quit unexpectedly" dialogs.
+    // Allow the host (e.g. the Web server) to serialise office conversions via an env override; the
+    // desktop app keeps the previous default.
+    private static readonly int Workers = ReadWorkers();
+    internal static int ReadWorkers()
+    {
+        var raw = Environment.GetEnvironmentVariable("FILEE_LO_WORKERS");
+        return int.TryParse(raw, out var n) && n is >= 1 and <= 8 ? n : 2;
+    }
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(3);
 
     /// <summary>Usual time of one conversion with a prepared profile (drives the progress estimate).</summary>

@@ -94,6 +94,24 @@ public sealed class S2FilteringTests
         Assert.Contains("webp", mp4.Targets);
     }
 
+    [Fact]
+    public void FormatTargetCatalog_HidesAmrAndTrackerModulesUnsupportedByWeb()
+    {
+        var converters = WebConversionAssembly.CreateConverters(
+            new Filee.Engines.Infrastructure.EngineEnvironment(Path.GetTempPath()));
+        var catalog = new FormatTargetCatalog(
+            Filee.Core.Formats.FormatRegistry.Known,
+            new RoutePlannerAdapter(new Filee.Core.Conversion.ConverterCatalog(converters)));
+
+        var formats = catalog.Build();
+        // amr must never be offered as a target (AMR encoder absent from the portable FFmpeg).
+        Assert.DoesNotContain(formats, f => f.Targets.Contains("amr", StringComparer.OrdinalIgnoreCase));
+        // xm (FastTracker) must not be offered as a source (needs libopenmpt/libmodplug).
+        var xm = formats.FirstOrDefault(f => f.Id == "xm");
+        if (xm is not null)
+            Assert.Empty(xm.Targets);
+    }
+
     private sealed class AlwaysCanConvert : ITargetPlanner
     {
         public bool CanConvert(string from, string to) => true;

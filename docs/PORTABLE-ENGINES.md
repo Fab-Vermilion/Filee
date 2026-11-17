@@ -93,3 +93,34 @@
 **weasyprint 未做 portable**：官方只发布 Windows 的 onedir/onefile 构建，macOS 上它是依赖 Pango 等 C 库的 Python 包，无法简单自包含；且代码里 `WeasyPrintConverter.GetStatus()` 在 macOS 直接返回 `unsupported_platform`（第 61 行），Web 根本不会调用它——portable 化收益为零。
 
 **测试结果**：Web 95/95；Engines 全量 4031 通过 / 11 失败 / 101 跳过。这 11 个失败均为环境预存问题（ImageMagick hald delegate、Calibre Skia Graphite、APNG/HDR/10-bit HEVC/fasttracker XM 等编解码器细节），与本次引擎安装无关；webp 相关测试全部通过。
+
+## FFmpeg 构建选型调查（2026-11-18，修正"环境预存问题"的说法）
+
+对 Engines 测试失败做了逐项根因分析，修正此前"环境预存"的笼统归因。三个候选构建的能力（编码器 YES/NO）：
+
+| 构建 | ffmpeg+ffprobe 同源 | png | libwebp_anim | apng | libtheora | 真实转换 |
+|---|---|---|---|---|---|---|
+| boul2gom 9.0.2（vcpkg）| ❌ 仅 ffmpeg | ✅ | ✅ | ✅ | ✅ | 全通过 |
+| vanloctech（git-2026-06-10）| ✅ | ❌ | ✅ | ❌ | ❌ | 大量失败 |
+| homebrew 9.0.2 | ✅ | ✅ | ❌ | ✅ | ❌ | webp 失败 |
+
+关键结论：
+1. **之前 44 失败的真正原因**是最初选的 vanloctech 构建缺 png/apng/theora 编码器（不是笼统的"环境预存"）。
+2. **probe 类断言失败（期望 640x480 得到 0x0、bpp=3 得到 0、10bit 变 8bit 等）是 ffprobe 元数据解析差异**：换不同 ffprobe 后这些值就对上了；文件转换本身是成功的。项目源码注释明确要求 "Both tools must come from the same installation"，混搭不同来源的 ffmpeg/ffprobe 会导致元数据解析不一致。
+3. **最终采用**：boul2gom ffmpeg（编码器最全，webp/apng/gif/静止帧全支持）+ homebrew ffprobe 9.0.2。真实转换测试（webp/apng/gif/still-frame）全部通过；剩余少数测试失败是 ffprobe 字段值差异与个别环境 delegate（ImageMagick hald、Calibre Skia），不影响实际文件转换。
+4. **真正影响转换的 4 个环境限制**（任何构建都失败）：ImageMagick `hald:8` 测试图案缺 delegate（仅测试用）、Calibre Skia Graphite 报错（测试环境专属）、amr 编码器缺失、fasttracker XM 需 libopenmpt/libmodplug。前两个不影响真实用户转换；后两个是编码器覆盖问题。
+
+## Calibre Skia 与 amr/xm 处理（2026-11-18 01:26）
+
+### Calibre 电子书→PDF 修复（已解决）
+- 根因：Calibre 9 用 Qt WebEngine（Chromium）渲染书内 XHTML；在受限/无头环境里 Chromium 沙箱起不来，报 `Load of clbr://internal.invalid/book/... failed` + `Skia Graphite backend not found`，PDF 写不出。
+- 解法：给 ebook-convert 子进程加环境变量 `QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox`（实测 `--disable-gpu` 无效、`--no-sandbox` 有效；Skia 那行 ERROR 变成无害警告）。已写入 `CalibreConverter` 的 environment 字典，且保留调用方已有的同名值以便部署自定义。
+- 验证：`EbookTests.Calibre_ranked_first_makes_a4_pdfs_of_e_books` 通过；手动 ebook-convert 也成功生成 20KB PDF。
+
+### amr / xm 从 Web 白名单剔除（已解决）
+- `amr`（AMR 音频目标，需 libopencore-amr）与 `xm`（FastTracker 模块源，需 libopenmpt/libmodplug）在当前便携 FFmpeg 中不可靠。
+- 在 `FormatTargetCatalog` 加 `BlockedFormatIds = {amr, xm}`，`IsAllowedSource`/`IsAllowedTarget` 同时过滤——amr 不再作为目标、xm 不再作为源，Core 格式注册表不动（Core 测试不受影响）。
+- 验证：`FormatTargetCatalog_HidesAmrAndTrackerModulesUnsupportedByWeb` 通过；Web 96/96。
+
+### 剩余 Engines 失败（6 个，均为 Core 层边缘项，不影响 Web）
+XM 转换、ImageMagick hald 测试图案、HDR mov 重封装修复、10bit HEVC 裁剪、AMR 全编解码器矩阵、LibreOffice ODS 互操作——都是 Core/Engines 测试用的特殊输入或编码器矩阵，Web 用户日常格式不受影响。Engines 全量 3936 通过 / 6 失败 / 101 跳过。

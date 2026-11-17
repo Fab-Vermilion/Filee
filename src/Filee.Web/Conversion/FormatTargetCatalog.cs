@@ -58,6 +58,15 @@ public sealed class FormatTargetCatalog
         "p7m",
     };
 
+    // Formats in Core that the Web build's FFmpeg cannot reliably handle (AMR encoding and tracker
+    // module decoding need libopencore-amr / libopenmpt, absent from the portable build). Hiding them
+    // here keeps the API honest: users never see a target or source that would fail at runtime.
+    private static readonly HashSet<string> BlockedFormatIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "amr", // audio target: AMR-NB/WB encoder not present
+        "xm",  // audio source: FastTracker 2 module needs libopenmpt/libmodplug
+    };
+
     // §11 allows EPS/PS -> PDF. SVG stays outside this stage even though it shares the Vector category.
     private static readonly HashSet<string> VectorSourceIds = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -101,11 +110,13 @@ public sealed class FormatTargetCatalog
     }
 
     private static bool IsAllowedSource(FileFormat format) =>
-        SourceCategories.Contains(format.Category)
-        || IdFallbacks.Contains(format.Id)
-        || VectorSourceIds.Contains(format.Id);
+        !BlockedFormatIds.Contains(format.Id)
+        && (SourceCategories.Contains(format.Category)
+            || IdFallbacks.Contains(format.Id)
+            || VectorSourceIds.Contains(format.Id));
 
     private static bool IsAllowedTarget(FileFormat format) =>
-        format.Writable
+        !BlockedFormatIds.Contains(format.Id)
+        && format.Writable
         && (TargetCategories.Contains(format.Category) || IdFallbacks.Contains(format.Id));
 }

@@ -86,6 +86,12 @@ public sealed partial class CalibreConverter : IConverter
             ["CALIBRE_OVERRIDE_LANG"] = "en", // English messages in the error details, whatever the Windows language
             ["PYTHONIOENCODING"] = "utf-8",
             ["PYTHONUNBUFFERED"] = "1", // each progress line as it is printed: the stall watch counts on them
+            // Calibre renders book XHTML with Qt WebEngine (Chromium). In restricted/headless environments
+            // Chromium's own sandbox cannot start, so the renderer fails with
+            // "Load of clbr://internal.invalid/book/... failed" and no PDF is written. Disabling just the
+            // Chromium sandbox (the conversion is already an isolated timed process) lets rendering succeed.
+            // A caller-supplied value is preserved so deployments can choose their own flags.
+            ["QTWEBENGINE_CHROMIUM_FLAGS"] = Environment.GetEnvironmentVariable("QTWEBENGINE_CHROMIUM_FLAGS") ?? "--no-sandbox",
         };
         progress?.Report(0.02);
         var result = await ProcessRunner.RunAsync(executable, [input, temp, .. OutputOptions(step.To)], Timeout.InfiniteTimeSpan,

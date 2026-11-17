@@ -53,7 +53,11 @@
 
     <section class="card">
       <h2 class="pane-title"><span class="step">3</span> 任务进度</h2>
-      <p class="storage-note">任务记录与转换文件在服务器上保留 <strong>24 小时</strong>后自动清理；下载链接有效期为 <strong>1 小时</strong>。请在有效期内下载并妥善保存文件。</p>
+      <p class="storage-note">任务记录、转换文件与下载链接在服务器上保留 <strong>24 小时</strong>后自动清理。请在有效期内下载并妥善保存文件。</p>
+      <div class="job-tabs" role="tablist" aria-label="任务分类">
+        <button id="tab-current" type="button" class="job-tab on" role="tab" aria-selected="true">当前任务 <span id="current-count" class="tab-count">0</span></button>
+        <button id="tab-history" type="button" class="job-tab" role="tab" aria-selected="false">历史记录 <span id="history-count" class="tab-count">0</span></button>
+      </div>
       <div id="job-list"></div>
     </section>
   </main>

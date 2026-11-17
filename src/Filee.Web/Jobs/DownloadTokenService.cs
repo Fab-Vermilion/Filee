@@ -13,7 +13,7 @@ public sealed class DownloadTokenService
     private readonly ConcurrentDictionary<string, TokenEntry> _tokens = new(StringComparer.Ordinal);
     private readonly TimeSpan _ttl;
 
-    public DownloadTokenService(TimeSpan? ttl = null) => _ttl = ttl ?? TimeSpan.FromHours(1);
+    public DownloadTokenService(TimeSpan? ttl = null) => _ttl = ttl ?? WebRetention.DownloadTokenTtl;
 
     public string Issue(string tid, string sub, string jobId) => Issue(tid, sub, jobId, null);
 

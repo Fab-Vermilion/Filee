@@ -228,11 +228,11 @@ public sealed class S9FrontendTests
 
         Assert.Contains("function restoreJobs", js);
         Assert.Contains("fetch(\"/api/jobs\"", js);
-        Assert.Contains("pollRestoredJob", js);
+        Assert.DoesNotContain("pollRestoredJob", js); // 历史任务只读，不轮询
         Assert.Contains("storage-note", html);
         Assert.Contains("storage-note", css);
         Assert.Contains("24 小时", html);
-        Assert.Contains("1 小时", html);
+        Assert.DoesNotContain("1 小时", html);
     }
 
     [Fact]
@@ -242,5 +242,22 @@ public sealed class S9FrontendTests
 
         Assert.Contains("已连接 WorkBuddy 账号", js);
         Assert.DoesNotContain("已连接：${session.sub}", js);
+    }
+
+    [Fact]
+    public void Frontend_SplitsCurrentAndHistoryTabs()
+    {
+        var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
+        var html = File.ReadAllText(Path.Combine(WwwRoot, "index.html"));
+        var css = File.ReadAllText(Path.Combine(WwwRoot, "styles.css"));
+
+        Assert.Contains("tab-current", html);
+        Assert.Contains("tab-history", html);
+        Assert.Contains("当前任务", html);
+        Assert.Contains("历史记录", html);
+        Assert.Contains("origin: \"session\"", js);
+        Assert.Contains("origin: \"history\"", js);
+        Assert.Contains("activeTab", js);
+        Assert.Contains(".job-tab", css);
     }
 }

@@ -11,7 +11,7 @@ public sealed class JobDirectoryCleaner(WebStoragePaths storage, TimeSpan ttl, T
     : BackgroundService
 {
     public JobDirectoryCleaner(WebStoragePaths storage, ILogger<JobDirectoryCleaner> logger)
-        : this(storage, TimeSpan.FromHours(24), TimeSpan.FromHours(1), logger) { }
+        : this(storage, WebRetention.FileAndRecordTtl, WebRetention.CleanupInterval, logger) { }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

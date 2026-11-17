@@ -182,6 +182,20 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   border-radius: 8px; padding: 7px 10px; margin: 0 0 8px;
 }
 .storage-note strong { color: var(--text-secondary); }
+.job-tabs { display: flex; gap: 6px; margin: 0 0 8px; border-bottom: 1px solid var(--border); }
+.job-tab {
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+  background: transparent; color: var(--text-secondary);
+  padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.job-tab:hover { color: var(--text-primary); }
+.job-tab.on { color: var(--text-accent); border-bottom-color: var(--text-accent); }
+.tab-count {
+  display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 3px;
+  font-size: 11px; line-height: 18px; text-align: center;
+  background: var(--surface-1); border-radius: 999px; color: var(--text-secondary);
+}
+.job-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 24px 0; }
 .job { border-top: 1px solid var(--border); padding: 10px 0; }
 .job:first-child { border-top: 0; }
 .job-title { font-size: 13px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }

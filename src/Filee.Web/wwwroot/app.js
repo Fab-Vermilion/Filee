@@ -1,8 +1,9 @@
 const state = {
   csrfToken: "",
   target: "",
-  jobs: new Map(),
-  sources: new Map(),      // jobId -> EventSource，清空任务列表时一并关闭
+  jobs: new Map(),         // jobId -> {..., origin: "session"|"history"}
+  sources: new Map(),      // jobId -> EventSource
+  activeTab: "current",    // current=本次会话提交；history=服务端恢复
   reloading: false,
   formats: [],          // 全部 FormatDescriptor
   byId: new Map(),      // id -> descriptor
@@ -26,6 +27,10 @@ const elements = {
   retry: document.querySelector("#retry"),
   message: document.querySelector("#message"),
   jobs: document.querySelector("#job-list"),
+  tabCurrent: document.querySelector("#tab-current"),
+  tabHistory: document.querySelector("#tab-history"),
+  currentCount: document.querySelector("#current-count"),
+  historyCount: document.querySelector("#history-count"),
 };
 
 const CATEGORY_LABELS = {
@@ -300,7 +305,8 @@ async function submitJob() {
 }
 
 function trackJob(jobId) {
-  state.jobs.set(jobId, { status: "queued", progress: 0 });
+  state.jobs.set(jobId, { status: "queued", progress: 0, origin: "session" });
+  state.activeTab = "current";
   renderJobs();
   const source = new EventSource(`/api/jobs/${jobId}/events`);
   state.sources.set(jobId, source);
@@ -344,13 +350,30 @@ function resolvedStatus(job) {
 
 function renderJobs() {
   elements.jobs.innerHTML = "";
-  for (const job of state.jobs.values()) {
+  const all = [...state.jobs.values()];
+  const current = all.filter(j => j.origin === "session");
+  const history = all.filter(j => j.origin === "history");
+  elements.currentCount.textContent = String(current.length);
+  elements.historyCount.textContent = String(history.length);
+  elements.tabCurrent.classList.toggle("on", state.activeTab === "current");
+  elements.tabHistory.classList.toggle("on", state.activeTab === "history");
+  elements.tabCurrent.setAttribute("aria-selected", String(state.activeTab === "current"));
+  elements.tabHistory.setAttribute("aria-selected", String(state.activeTab === "history"));
+  const visible = state.activeTab === "current" ? current : history;
+  if (!visible.length) {
+    const empty = document.createElement("p");
+    empty.className = "job-empty";
+    empty.textContent = state.activeTab === "current" ? "本次会话还没有转换任务。" : "暂无历史记录。";
+    elements.jobs.appendChild(empty);
+  }
+  for (const job of visible) {
     const row = document.createElement("div"); row.className = "job";
     const title = document.createElement("div"); title.className = "job-title";
     const raw = resolvedStatus(job);
     const failed = raw === "failed" || raw === "completedwitherrors" || raw === "completed_with_errors";
     title.textContent = STATUS_LABELS[raw] || raw;
-    if (raw === "running") {
+    // 历史记录只读：旧的 running 残留不显示转圈，避免误以为仍在处理
+    if (raw === "running" && state.activeTab === "current") {
       const spinner = document.createElement("span");
       spinner.className = "spinner"; spinner.setAttribute("aria-hidden", "true");
       title.appendChild(spinner);
@@ -383,6 +406,8 @@ elements.addMore.addEventListener("click", () => elements.files.click());
 elements.target.addEventListener("change", () => selectTarget(elements.target.value));
 elements.submit.addEventListener("click", submitJob);
 elements.retry.addEventListener("click", requestRelogin);
+elements.tabCurrent.addEventListener("click", () => { state.activeTab = "current"; renderJobs(); });
+elements.tabHistory.addEventListener("click", () => { state.activeTab = "history"; renderJobs(); });
 
 // 恢复 TTL 内的历史任务（例如从「使用手册」返回）：服务端 SQLite 有记录，页面重载后重新拉取。
 async function restoreJobs() {
@@ -390,28 +415,10 @@ async function restoreJobs() {
   if (!response.ok) return;
   const payload = await response.json();
   for (const job of payload.jobs || []) {
-    if (!state.jobs.has(job.jobId)) state.jobs.set(job.jobId, job);
-    // 仍在运行的任务没有 SSE 流可续，轻量轮询直到终态
-    if ((job.status || "").toLowerCase() === "running") pollRestoredJob(job.jobId);
+    // 历史记录只读展示：不接续 SSE、不轮询，避免陈旧的 running 任务一直转圈
+    if (!state.jobs.has(job.jobId)) state.jobs.set(job.jobId, { ...job, origin: "history" });
   }
   renderJobs();
-}
-
-async function pollRestoredJob(jobId) {
-  const timer = setInterval(async () => {
-    const current = state.jobs.get(jobId);
-    if (!current || !["running", "queued"].includes((current.status || "").toLowerCase())) {
-      clearInterval(timer); return;
-    }
-    try {
-      const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, { credentials: "same-origin" });
-      if (!response.ok) { clearInterval(timer); return; }
-      const fresh = await response.json();
-      state.jobs.set(jobId, { ...current, ...fresh });
-      renderJobs();
-      if (!["running", "queued"].includes((fresh.status || "").toLowerCase())) clearInterval(timer);
-    } catch { clearInterval(timer); }
-  }, 3000);
 }
 
 (async () => {

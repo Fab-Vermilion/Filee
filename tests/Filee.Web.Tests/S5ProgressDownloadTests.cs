@@ -97,6 +97,18 @@ public sealed class S5ProgressDownloadTests
         Assert.NotEqual(first, second);
     }
 
+    [Fact]
+    public void DownloadToken_DefaultTtlMatchesFileRetention()
+    {
+        var tokens = new DownloadTokenService();
+        var ttl = (TimeSpan)typeof(DownloadTokenService)
+            .GetField("_ttl", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(tokens)!;
+
+        Assert.Equal(WebRetention.FileAndRecordTtl, ttl);
+        Assert.Equal(TimeSpan.FromHours(24), ttl);
+    }
+
     private static string DataStatus(SseEvent sseEvent)
     {
         using var document = JsonDocument.Parse(sseEvent.Data);

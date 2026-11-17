@@ -12,7 +12,8 @@ public sealed record JobRecord(
     string Status,
     double Progress,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? FinishedAt);
+    DateTimeOffset? FinishedAt,
+    IReadOnlyList<string>? OutputFiles = null);
 
 public sealed record JobFileSnapshot(
     string Id,

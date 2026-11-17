@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
 namespace Filee.Web.Jobs;
@@ -18,10 +19,13 @@ public sealed class JobStore
             status TEXT NOT NULL,
             progress REAL NOT NULL,
             created_at TEXT NOT NULL,
-            finished_at TEXT NULL
+            finished_at TEXT NULL,
+            output_files TEXT NOT NULL DEFAULT '[]'
         );
         CREATE INDEX IF NOT EXISTS idx_jobs_owner ON jobs(tid, sub);
         """;
+    // Older databases predate output_files; add it in place so existing records stay usable.
+    private const string AddOutputFilesSql = "ALTER TABLE jobs ADD COLUMN output_files TEXT NOT NULL DEFAULT '[]';";
 
     private readonly string _connectionString;
 
@@ -36,6 +40,13 @@ public sealed class JobStore
         using var command = connection.CreateCommand();
         command.CommandText = CreateSql;
         command.ExecuteNonQuery();
+        // ALTER is idempotent-safe here: run only when the column is missing.
+        command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name = 'output_files';";
+        if ((long)(command.ExecuteScalar() ?? 0L) == 0)
+        {
+            command.CommandText = AddOutputFilesSql;
+            command.ExecuteNonQuery();
+        }
     }
 
     public void Upsert(JobRecord record)
@@ -43,8 +54,8 @@ public sealed class JobStore
         using var connection = Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO jobs (web_id, internal_id, tid, sub, target, status, progress, created_at, finished_at)
-            VALUES ($webId, $internalId, $tid, $sub, $target, $status, $progress, $createdAt, $finishedAt)
+            INSERT INTO jobs (web_id, internal_id, tid, sub, target, status, progress, created_at, finished_at, output_files)
+            VALUES ($webId, $internalId, $tid, $sub, $target, $status, $progress, $createdAt, $finishedAt, $outputFiles)
             ON CONFLICT(web_id) DO UPDATE SET
                 internal_id = excluded.internal_id,
                 tid = excluded.tid,
@@ -71,6 +82,17 @@ public sealed class JobStore
         command.Parameters.AddWithValue("$status", status);
         command.Parameters.AddWithValue("$progress", progress);
         command.Parameters.AddWithValue("$finishedAt", finishedAt is { } value ? Format(value) : DBNull.Value);
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Persists the output file names once a job finishes, so history can offer downloads after a restart.</summary>
+    public void UpdateOutputFiles(string webId, IReadOnlyList<string> names)
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE jobs SET output_files = $outputFiles WHERE web_id = $webId;";
+        command.Parameters.AddWithValue("$webId", webId);
+        command.Parameters.AddWithValue("$outputFiles", JsonSerializer.Serialize(names));
         command.ExecuteNonQuery();
     }
 
@@ -124,6 +146,7 @@ public sealed class JobStore
         command.Parameters.AddWithValue("$progress", record.Progress);
         command.Parameters.AddWithValue("$createdAt", Format(record.CreatedAt));
         command.Parameters.AddWithValue("$finishedAt", record.FinishedAt is { } finished ? Format(finished) : DBNull.Value);
+        command.Parameters.AddWithValue("$outputFiles", JsonSerializer.Serialize(record.OutputFiles ?? []));
     }
 
     private static JobRecord ReadRecord(SqliteDataReader reader) => new(
@@ -137,7 +160,8 @@ public sealed class JobStore
         DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("created_at")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
         reader.IsDBNull(reader.GetOrdinal("finished_at"))
             ? null
-            : DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("finished_at")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind));
+            : DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("finished_at")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+        JsonSerializer.Deserialize<IReadOnlyList<string>>(reader.GetString(reader.GetOrdinal("output_files"))) ?? []);
 
     private static string Format(DateTimeOffset value) => value.ToString("O", CultureInfo.InvariantCulture);
 }

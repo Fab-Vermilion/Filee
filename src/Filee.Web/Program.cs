@@ -97,6 +97,8 @@ queue.JobFinished += (_, job) =>
         .Select(f => f.Outputs.FirstOrDefault(File.Exists) ?? "")
         .ToArray();
     registry.SetOutputs(webId, outputs);
+    // Persist names so a later process (restart / page reload) can still offer history downloads.
+    jobStore.UpdateOutputFiles(webId, outputs.Where(p => !string.IsNullOrEmpty(p)).Select(Path.GetFileName).ToArray());
     // Safety net: if the engine still reports Running although every file is done, persist a terminal
     // status so the UI never sticks on "进行中" with downloadable outputs already present.
     var status = JobFinalStatus.Resolve(job);
@@ -190,7 +192,7 @@ app.MapGet("/api/jobs/{id}", (string id, HttpContext context, SessionService ses
     if (record is null || record.Tid != identity.Tid || record.Sub != identity.Sub)
         return ApiProblem.NotFound();
 
-    return Results.Ok(JobSnapshots.Build(record, jobs, tokens, identity));
+    return Results.Ok(JobSnapshots.Build(record, jobs, storage, tokens, identity));
 });
 
 app.MapGet("/api/jobs", (HttpContext context, SessionService sessions, JobStore store,
@@ -201,7 +203,7 @@ app.MapGet("/api/jobs", (HttpContext context, SessionService sessions, JobStore 
     // TTL-bounded durable summaries. Download links are available only while the job is still in the
     // in-memory registry (i.e. this process has seen it); expired/old records remain visible as history.
     var snapshots = store.ForOwner(identity.Tid, identity.Sub)
-        .Select(record => JobSnapshots.Build(record, jobs, tokens, identity))
+        .Select(record => JobSnapshots.Build(record, jobs, storage, tokens, identity))
         .ToArray();
     return Results.Ok(new { jobs = snapshots });
 });
@@ -266,7 +268,7 @@ app.MapGet("/api/download", (string? token, HttpContext context, SessionService 
 });
 
 app.MapGet("/api/download/all", (string? token, HttpContext context, SessionService sessions,
-    DownloadTokenService tokens, WebJobRegistry jobs) =>
+    DownloadTokenService tokens, WebJobRegistry jobs, WebStoragePaths storage) =>
 {
     if (!sessions.TryRead(context, out var identity))
         return ApiProblem.Unauthenticated();
@@ -276,6 +278,14 @@ app.MapGet("/api/download/all", (string? token, HttpContext context, SessionServ
     if (!tokens.TryResolve(token, identity.Tid, identity.Sub, out var jobId))
         return ApiProblem.Forbidden();
     var paths = jobs.GetOutputs(jobId).Where(File.Exists).ToArray();
+    if (paths.Length == 0)
+    {
+        // History after a restart: registry is empty, but the output directory is durable.
+        var dir = storage.OutputDirectory(jobId);
+        paths = Directory.Exists(dir)
+            ? Directory.EnumerateFiles(dir).Where(p => !Path.GetFileName(p).StartsWith("._")).ToArray()
+            : [];
+    }
     if (paths.Length == 0)
         return ApiProblem.Expired();
 

@@ -176,6 +176,12 @@ button.ghost { background: transparent; color: var(--text-secondary); border-col
 button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* 任务 */
+.storage-note {
+  font-size: 12px; color: var(--text-muted);
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px; margin: 0 0 8px;
+}
+.storage-note strong { color: var(--text-secondary); }
 .job { border-top: 1px solid var(--border); padding: 10px 0; }
 .job:first-child { border-top: 0; }
 .job-title { font-size: 13px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }

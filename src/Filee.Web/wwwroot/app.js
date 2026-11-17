@@ -54,7 +54,8 @@ async function readSession() {
   if (!response.ok) throw new Error("会话读取失败");
   const session = await response.json();
   state.csrfToken = session.csrfToken;
-  elements.sessionNote.textContent = `已连接：${session.sub}`;
+  // id_token 不含用户名（官方仅给 sub/tid），只显示友好文案，不裸显账号 ID
+  elements.sessionNote.textContent = "已连接 WorkBuddy 账号";
   elements.retry.hidden = true;
   return true;
 }
@@ -383,7 +384,41 @@ elements.target.addEventListener("change", () => selectTarget(elements.target.va
 elements.submit.addEventListener("click", submitJob);
 elements.retry.addEventListener("click", requestRelogin);
 
+// 恢复 TTL 内的历史任务（例如从「使用手册」返回）：服务端 SQLite 有记录，页面重载后重新拉取。
+async function restoreJobs() {
+  const response = await fetch("/api/jobs", { credentials: "same-origin" });
+  if (!response.ok) return;
+  const payload = await response.json();
+  for (const job of payload.jobs || []) {
+    if (!state.jobs.has(job.jobId)) state.jobs.set(job.jobId, job);
+    // 仍在运行的任务没有 SSE 流可续，轻量轮询直到终态
+    if ((job.status || "").toLowerCase() === "running") pollRestoredJob(job.jobId);
+  }
+  renderJobs();
+}
+
+async function pollRestoredJob(jobId) {
+  const timer = setInterval(async () => {
+    const current = state.jobs.get(jobId);
+    if (!current || !["running", "queued"].includes((current.status || "").toLowerCase())) {
+      clearInterval(timer); return;
+    }
+    try {
+      const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, { credentials: "same-origin" });
+      if (!response.ok) { clearInterval(timer); return; }
+      const fresh = await response.json();
+      state.jobs.set(jobId, { ...current, ...fresh });
+      renderJobs();
+      if (!["running", "queued"].includes((fresh.status || "").toLowerCase())) clearInterval(timer);
+    } catch { clearInterval(timer); }
+  }, 3000);
+}
+
 (async () => {
-  try { if (await readSession()) await loadFormats(); }
-  catch { setMessage("初始化失败，请刷新页面重试。"); }
+  try {
+    if (await readSession()) {
+      await loadFormats();
+      await restoreJobs();
+    }
+  } catch { setMessage("初始化失败，请刷新页面重试。"); }
 })();

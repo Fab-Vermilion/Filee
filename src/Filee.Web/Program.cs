@@ -190,30 +190,20 @@ app.MapGet("/api/jobs/{id}", (string id, HttpContext context, SessionService ses
     if (record is null || record.Tid != identity.Tid || record.Sub != identity.Sub)
         return ApiProblem.NotFound();
 
-    var job = jobs.Get(id);
-    var files = job is null
-        ? []
-        : job.Files.Select((file, index) =>
-        {
-            var hasOutput = jobs.TryGetOutput(id, index, out var outputPath);
-            var downloadUrl = hasOutput
-                ? $"/api/download?token={tokens.Issue(identity.Tid, identity.Sub, id, outputPath)}"
-                : null;
-            return new JobFileSnapshot(
-                $"f{index + 1}",
-                DownloadDisplay.Name(Path.GetFileName(file.SourcePath), record.Target, hasOutput ? outputPath : null),
-                file.Transfer?.Bytes ?? 0,
-                ToFileStatus(file.State),
-                file.Progress,
-                file.ErrorKey is null ? null : ApiErrorEnvelope.Create("conversion_failed", "转换失败，请重试").Error,
-                downloadUrl);
-        }).ToArray();
+    return Results.Ok(JobSnapshots.Build(record, jobs, tokens, identity));
+});
 
-    // A job-level token (no pinned path) authorises the all-files zip archive.
-    var archiveUrl = files.Any(f => f.DownloadUrl is not null)
-        ? $"/api/download/all?token={tokens.Issue(identity.Tid, identity.Sub, id)}"
-        : null;
-    return Results.Ok(JobSnapshot.From(record) with { Files = files, ArchiveUrl = archiveUrl });
+app.MapGet("/api/jobs", (HttpContext context, SessionService sessions, JobStore store,
+    WebJobRegistry jobs, DownloadTokenService tokens) =>
+{
+    if (!sessions.TryRead(context, out var identity))
+        return ApiProblem.Unauthenticated();
+    // TTL-bounded durable summaries. Download links are available only while the job is still in the
+    // in-memory registry (i.e. this process has seen it); expired/old records remain visible as history.
+    var snapshots = store.ForOwner(identity.Tid, identity.Sub)
+        .Select(record => JobSnapshots.Build(record, jobs, tokens, identity))
+        .ToArray();
+    return Results.Ok(new { jobs = snapshots });
 });
 
 app.MapGet("/api/jobs/{id}/events", async Task<IResult> (string id, HttpContext context, SessionService sessions,
@@ -305,17 +295,6 @@ static IResult BadLanding() => Results.Json(
 
 static bool IsTerminalStatus(string status) =>
     status is "completed" or "completed_with_errors" or "failed" or "cancelled" or "interrupted";
-
-static string ToFileStatus(FileState state) => state switch
-{
-    FileState.Pending => "pending",
-    FileState.Running => "running",
-    FileState.Done => "done",
-    FileState.Skipped => "skipped",
-    FileState.Failed => "failed",
-    FileState.Cancelled => "cancelled",
-    _ => throw new ArgumentOutOfRangeException(nameof(state)),
-};
 
 static async Task WriteSseAsync(HttpResponse response, SseEvent sseEvent)
 {

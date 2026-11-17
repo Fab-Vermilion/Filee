@@ -218,4 +218,29 @@ public sealed class S9FrontendTests
         Assert.Contains("links.appendChild(Object.assign", js); // zip 按钮 append 到链接容器
         Assert.Contains("archive-link", js);
     }
+
+    [Fact]
+    public void Frontend_RestoresJobsAndShowsStorageNote()
+    {
+        var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
+        var html = File.ReadAllText(Path.Combine(WwwRoot, "index.html"));
+        var css = File.ReadAllText(Path.Combine(WwwRoot, "styles.css"));
+
+        Assert.Contains("function restoreJobs", js);
+        Assert.Contains("fetch(\"/api/jobs\"", js);
+        Assert.Contains("pollRestoredJob", js);
+        Assert.Contains("storage-note", html);
+        Assert.Contains("storage-note", css);
+        Assert.Contains("24 小时", html);
+        Assert.Contains("1 小时", html);
+    }
+
+    [Fact]
+    public void Frontend_ShowsFriendlyConnectionTextNotRawSub()
+    {
+        var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
+
+        Assert.Contains("已连接 WorkBuddy 账号", js);
+        Assert.DoesNotContain("已连接：${session.sub}", js);
+    }
 }

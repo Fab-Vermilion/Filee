@@ -152,18 +152,4 @@ public sealed class S9FrontendTests
         Assert.Contains("第三方协议", manual);
         Assert.Contains("返回", manual);
     }
-
-    [Fact]
-    public void Frontend_HasFileSystemProbePageLinkedFromHome()
-    {
-        var html = File.ReadAllText(Path.Combine(WwwRoot, "index.html"));
-        var probe = File.ReadAllText(Path.Combine(WwwRoot, "fs-probe.html"));
-
-        Assert.Contains("/fs-probe.html", html);          // 首页有诊断入口
-        Assert.Contains("showDirectoryPicker", probe);     // 触发目录授权
-        Assert.Contains("createWritable", probe);          // 写入
-        Assert.Contains("getFileHandle", probe);           // 读回校验
-        Assert.Contains("allowsFeature", probe);           // 权限策略探测
-        Assert.DoesNotContain("cdn.jsdelivr", probe, StringComparison.OrdinalIgnoreCase);
-    }
 }

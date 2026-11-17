@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>本机保存能力探测 · Filee</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .probe-row { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .probe-row:last-child { border-bottom: 0; }
+    .probe-key { min-width: 210px; color: var(--text-secondary); }
+    .probe-val { color: var(--text-primary); word-break: break-all; }
+    .probe-ok { color: var(--text-success); font-weight: 600; }
+    .probe-no { color: var(--text-warn); font-weight: 600; }
+    #probe-log {
+      white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6;
+      background: var(--surface-1); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 12px; margin-top: 12px; min-height: 40px;
+    }
+    .probe-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">◎</span>
+        <div><h1>本机保存能力探测</h1><p class="subtle">验证浏览器能否把文件直接写入你授权的本地目录</p></div>
+      </div>
+      <a href="/" class="ghost back-link">← 返回转换</a>
+    </header>
+
+    <section class="card">
+      <h2 class="pane-title">一、环境检测（自动）</h2>
+      <div id="probe-env"></div>
+      <p class="subtle" style="margin-top:10px">若"是否在 iframe 内"=是，但"目录授权"=否，说明 WorkBuddy 客户端未放行文件系统权限，直存方案在该环境不可用。</p>
+    </section>
+
+    <section class="card">
+      <h2 class="pane-title">二、写入测试（需点击）</h2>
+      <p>点击按钮后会弹出系统目录选择框，请选择一个用来测试的目录。页面会在该目录创建一个 <code>filee-probe.txt</code> 文件，写入后读回校验，并显示结果。</p>
+      <div class="probe-actions">
+        <button id="probe-run" type="button">选择目录并写入测试文件</button>
+        <button id="probe-clean" type="button" class="ghost" hidden>删除测试文件</button>
+      </div>
+      <div id="probe-log" role="status">尚未测试。</div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+      var env = document.getElementById("probe-env");
+      var logBox = document.getElementById("probe-log");
+      var btnRun = document.getElementById("probe-run");
+      var btnClean = document.getElementById("probe-clean");
+      var dirHandle = null;
+      var PROBE_FILE = "filee-probe.txt";
+
+      function log(line) {
+        var ts = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+        logBox.textContent += "\n[" + ts + "] " + line;
+      }
+      function row(key, value, ok) {
+        var div = document.createElement("div");
+        div.className = "probe-row";
+        var k = document.createElement("span"); k.className = "probe-key"; k.textContent = key;
+        var v = document.createElement("span");
+        v.className = "probe-val " + (ok === true ? "probe-ok" : ok === false ? "probe-no" : "");
+        v.textContent = value;
+        div.append(k, v); env.appendChild(div);
+      }
+      function yn(b) { return b ? "是 ✓" : "否 ✗"; }
+
+      // 环境探测（只读，不弹框）
+      var secure = !!window.isSecureContext;
+      var inIframe = window.self !== window.top;
+      var hasApi = typeof window.showDirectoryPicker === "function";
+      var pm = document.permissionsPolicy || document.featurePolicy || null;
+      var fsAllowed = pm && typeof pm.allowsFeature === "function" ? pm.allowsFeature("fs") : null;
+      var allowed = pm && typeof pm.allowedFeatures === "function" ? pm.allowedFeatures().slice().sort() : [];
+
+      row("安全上下文（HTTPS）", yn(secure) + (secure ? "" : " — 非 HTTPS 时 API 不可用"), secure);
+      row("是否在 iframe 内", yn(inIframe), null);
+      row("showDirectoryPicker 是否存在", hasApi ? "存在 ✓" : "不存在 ✗（浏览器不支持）", hasApi);
+      row("权限策略 fs 是否允许", fsAllowed === null ? "浏览器未暴露权限策略接口" : yn(fsAllowed), fsAllowed);
+      row("浏览器允许的特性列表", allowed.length ? allowed.join(", ") : "（无法读取或未暴露）", null);
+      row("用户代理（UA）", navigator.userAgent, null);
+
+      if (!hasApi) {
+        btnRun.disabled = true;
+        log("检测结束：当前浏览器不支持 showDirectoryPicker，直存方案不可用（可继续用现有下载按钮）。");
+      }
+
+      btnRun.addEventListener("click", async function () {
+        logBox.textContent = "";
+        log("开始写入测试…");
+        try {
+          if (typeof window.showDirectoryPicker !== "function")
+            throw new Error("showDirectoryPicker 不存在（浏览器不支持或非安全上下文）");
+
+          // 必须由用户手势触发；跨域 iframe 若未放通权限会在此抛 SecurityError
+          dirHandle = await window.showDirectoryPicker({ mode: "readwrite", id: "filee-fs-probe" });
+          log("目录授权成功：" + dirHandle.name);
+
+          var fh = await dirHandle.getFileHandle(PROBE_FILE, { create: true });
+          var writable = await fh.createWritable();
+          await writable.write(new Blob(["filee fs probe ok\n"], { type: "text/plain" }));
+          await writable.close();
+          log("写入成功：" + PROBE_FILE);
+
+          var readBack = await (await (await dirHandle.getFileHandle(PROBE_FILE)).getFile()).text();
+          log("读回校验：" + JSON.stringify(readBack.trim()));
+
+          log("结论：本机直存可行 ✅ —— 可进入完整功能开发。");
+          btnClean.hidden = false;
+        } catch (e) {
+          var name = e && e.name ? e.name : "Error";
+          var msg = e && e.message ? e.message : String(e);
+          log("失败：" + name + " — " + msg);
+          if (name === "SecurityError")
+            log("判断：被同源策略或 iframe 权限策略拦截。WorkBuddy 客户端需给菜单 iframe 放通 fs 权限，否则该环境不可用。");
+          else if (name === "AbortError")
+            log("判断：你取消了目录选择，或所选目录被浏览器判定为敏感目录。可换一个普通目录重试。");
+          else
+            log("判断：其它错误，请把本页截图发给开发者。");
+        }
+      });
+
+      btnClean.addEventListener("click", async function () {
+        if (!dirHandle) { log("没有可清理的目录句柄，请先完成一次写入测试。"); return; }
+        try {
+          await dirHandle.removeEntry(PROBE_FILE);
+          log("已删除测试文件 " + PROBE_FILE);
+          btnClean.hidden = true;
+        } catch (e) { log("删除失败：" + (e && e.message ? e.message : e)); }
+      });
+    })();
+  </script>
+</body>
+</html>

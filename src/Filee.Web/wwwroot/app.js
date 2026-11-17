@@ -279,8 +279,20 @@ async function submitJob() {
   const payload = await response.json();
   // 任务提交后清空「1 添加文件」的文件列表，方便下一批；「3 任务进度」保留累积，
   // 与服务端 TTL 清理同步（历史任务在有效期内仍可查看/下载）。
+  // onFilesChanged 是「追加」语义，传空数组不会清空——必须显式重置文件列表
   elements.files.value = "";
-  onFilesChanged([]);
+  state.files = [];
+  state.commonTargets = [];
+  state.target = "";
+  state.category = "";
+  renderFileList();
+  elements.categoryList.innerHTML = "";
+  elements.target.innerHTML = "";
+  elements.targetLabel.textContent = "待选择";
+  elements.formatHint.textContent = "先添加文件，系统会检测格式并列出可转换的目标。";
+  elements.addMore.hidden = true;
+  elements.submit.disabled = true;
+  renderDonut([]);
   setMessage("任务已创建。");
   trackJob(payload.jobId);
 }
@@ -311,11 +323,16 @@ async function refreshJob(jobId) {
 }
 const STATUS_LABELS = {
   queued: "排队中", running: "进行中", completed: "已完成",
-  completedwitherrors: "已完成（部分失败）", failed: "失败",
-  cancelled: "已取消", interrupted: "已中断",
+  completedwitherrors: "已完成（部分失败）", completed_with_errors: "已完成（部分失败）",
+  failed: "失败", cancelled: "已取消", interrupted: "已中断",
 };
-function statusLabel(status) {
-  return STATUS_LABELS[(status || "queued").toLowerCase()] || status;
+function resolvedStatus(job) {
+  const raw = (job.status || "queued").toLowerCase();
+  // 兜底：进度满且有下载文件时，即使摘要状态滞后也按已完成展示
+  if (raw === "running" && (job.progress || 0) >= 0.9999 &&
+      (job.files || []).some(f => f.downloadUrl))
+    return "completed";
+  return raw;
 }
 
 function renderJobs() {
@@ -323,25 +340,24 @@ function renderJobs() {
   for (const job of state.jobs.values()) {
     const row = document.createElement("div"); row.className = "job";
     const title = document.createElement("div"); title.className = "job-title";
-    const raw = (job.status || "queued").toLowerCase();
-    const failed = raw === "failed" || raw === "completedwitherrors";
-    title.textContent = statusLabel(raw);
+    const raw = resolvedStatus(job);
+    const failed = raw === "failed" || raw === "completedwitherrors" || raw === "completed_with_errors";
+    title.textContent = STATUS_LABELS[raw] || raw;
     if (failed) title.classList.add("fail");
-    // 「全部下载」只在批量（>1 个下载文件）时显示，放在状态行、进度条上方
-    const downloadable = (job.files || []).filter(f => f.downloadUrl);
-    if (downloadable.length > 1 && job.archiveUrl)
-      title.appendChild(Object.assign(document.createElement("a"), {
-        href: job.archiveUrl, className: "archive-link", textContent: "全部下载 (zip)",
-      }));
     const bar = document.createElement("div"); bar.className = "bar";
     const fill = document.createElement("span"); fill.style.width = `${Math.round((job.progress || 0) * 100)}%`;
     bar.appendChild(fill); row.append(title, bar);
 
     const links = document.createElement("div"); links.className = "job-links";
-    for (const file of downloadable) {
+    for (const file of (job.files || []).filter(f => f.downloadUrl)) {
       const link = document.createElement("a"); link.href = file.downloadUrl; link.textContent = `下载 ${file.name}`;
       links.appendChild(link);
     }
+    // 「全部下载」只在批量（>1 个下载文件）时显示，放在所有下载链接最后
+    if ((job.files || []).filter(f => f.downloadUrl).length > 1 && job.archiveUrl)
+      links.appendChild(Object.assign(document.createElement("a"), {
+        href: job.archiveUrl, className: "archive-link", textContent: "全部下载 (zip)",
+      }));
     row.appendChild(links);
     elements.jobs.appendChild(row);
   }

@@ -185,9 +185,10 @@ public sealed class S9FrontendTests
     {
         var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
 
-        Assert.Contains("onFilesChanged([])", js);            // 提交后清空「1 添加文件」列表
+        Assert.Contains("state.files = []", js);              // 显式清空（onFilesChanged 是追加语义）
+        Assert.Contains("renderFileList()", js);
+        Assert.DoesNotContain("onFilesChanged([])", js);      // 不能用追加空数组来"清空"
         Assert.DoesNotContain("state.jobs.clear()", js);      // 「3 任务进度」不清空，保留到 TTL
-        Assert.DoesNotContain("state.sources.clear()", js);
     }
 
     [Fact]
@@ -198,6 +199,8 @@ public sealed class S9FrontendTests
         Assert.Contains("进行中", js);
         Assert.Contains("已完成", js);
         Assert.Contains("排队中", js);
+        Assert.Contains("completed_with_errors", js);
+        Assert.Contains("function resolvedStatus", js); // 进度满兜底
         Assert.DoesNotContain("jobId.slice", js);    // 任务行不再显示内部 ID
     }
 
@@ -206,9 +209,10 @@ public sealed class S9FrontendTests
     {
         var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
 
-        Assert.Contains("downloadable.length > 1", js);   // 只在多个下载文件时出现
+        Assert.Contains("filter(f => f.downloadUrl).length > 1", js); // 只在多个下载文件时出现
         Assert.Contains("全部下载", js);
-        Assert.Contains("title.appendChild", js);        // 放在状态行（进度条上方）
+        Assert.Contains("links.appendChild", js);        // 放在下载链接最后
+        Assert.DoesNotContain("title.appendChild", js);
         Assert.Contains("archive-link", js);
     }
 }

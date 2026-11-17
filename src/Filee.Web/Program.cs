@@ -97,9 +97,13 @@ queue.JobFinished += (_, job) =>
         .Select(f => f.Outputs.FirstOrDefault(File.Exists) ?? "")
         .ToArray();
     registry.SetOutputs(webId, outputs);
-    var status = JobStatusMapper.ToApi(job.State);
+    // Safety net: if the engine still reports Running although every file is done, persist a terminal
+    // status so the UI never sticks on "进行中" with downloadable outputs already present.
+    var status = JobFinalStatus.Resolve(job);
+    if (status == "running" && outputs.Any(p => !string.IsNullOrEmpty(p)) && job.Progress >= 0.9999)
+        status = "completed";
     progress.Publish(webId, status, job.Progress, force: true);
-    jobStore.UpdateSummary(webId, status, job.Progress, DateTimeOffset.UtcNow);
+    jobStore.UpdateSummary(webId, status, job.Progress, IsTerminalStatus(status) ? DateTimeOffset.UtcNow : null);
 };
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));

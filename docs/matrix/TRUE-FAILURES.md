@@ -11,7 +11,7 @@
 
 | 源格式 | 目标格式 | 错误 | 性质 |
 |---|---|---|---|
-| eml | zip | `no_route`（eml → zip 无转换路由）| **真能力缺口** |
+| eml | zip | `no_route`（eml → zip 无转换路由）| ~~真能力缺口~~ **已从 Web 白名单剔除（已修）** |
 
 `eml`（邮件）在 Web 白名单里被归为 Document 类，`zip` 是 Archive 类，因此 `/api/formats` 把 `eml → zip` 展示为可选项；但引擎实际没有这条路由，用户选中后必失败。）
 
@@ -31,4 +31,4 @@
 - 真正的应用（WB 里运行）的 BaseDirectory 在项目 bin 目录，能正确找到 `engines/`，因此 ogv/ogg/webp 在应用中是正常的（已用项目 engines + 项目转换逻辑实测成功）。
 - 原报告 `full-failures.tsv` 的 1190 条中，除 eml→zip 外均为测试工具造成的假失败；`ENCODER-MISSING.md` 的复核结论（编码器其实存在）在本报告进一步确认。
 
-> 本阶段只记录、未修复。若要修 eml→zip，可从 Web 白名单剔除该边（eml 不提供 zip 目标），或为引擎补一条 eml→zip 路由。
+> **已修复（2026-11-18 07:03）**：按用户决定，从 Web 白名单剔除了 `eml→zip` 这条边——`FormatTargetCatalog` 新增边级黑名单 `BlockedEdges = {"eml=>zip"}`，`/api/formats` 不再向用户展示该选项；新增回归测试断言。其余 1189 条为测试工具假失败，无需修复。

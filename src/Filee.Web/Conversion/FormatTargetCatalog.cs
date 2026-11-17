@@ -67,6 +67,13 @@ public sealed class FormatTargetCatalog
         "xm",  // audio source: FastTracker 2 module needs libopenmpt/libmodplug
     };
 
+    // Specific source=>target edges the Web whitelist would otherwise expose but the engine has no
+    // route for, so a user selection would always fail. Verified by the full conversion matrix.
+    private static readonly HashSet<string> BlockedEdges = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "eml=>zip", // mail messages have no conversion route into an archive (no_route at runtime)
+    };
+
     // §11 allows EPS/PS -> PDF. SVG stays outside this stage even though it shares the Vector category.
     private static readonly HashSet<string> VectorSourceIds = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -104,6 +111,7 @@ public sealed class FormatTargetCatalog
             .Where(IsAllowedTarget)
             .Select(target => target.Id)
             .Where(id => _planner.CanConvert(source.Id, id))
+            .Where(id => !BlockedEdges.Contains($"{source.Id}=>{id}"))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
             .ToArray();

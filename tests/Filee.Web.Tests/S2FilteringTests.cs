@@ -112,6 +112,22 @@ public sealed class S2FilteringTests
             Assert.Empty(xm.Targets);
     }
 
+    [Fact]
+    public void FormatTargetCatalog_HidesEmlToZipEdgeWithoutRoute()
+    {
+        // The full conversion matrix found eml->zip is exposed by the whitelist but has no engine
+        // route (no_route at runtime). It must not be offered to users.
+        var converters = WebConversionAssembly.CreateConverters(
+            new Filee.Engines.Infrastructure.EngineEnvironment(Path.GetTempPath()));
+        var catalog = new FormatTargetCatalog(
+            Filee.Core.Formats.FormatRegistry.Known,
+            new RoutePlannerAdapter(new Filee.Core.Conversion.ConverterCatalog(converters)));
+
+        var eml = catalog.Build().FirstOrDefault(f => f.Id == "eml");
+        Assert.NotNull(eml);
+        Assert.DoesNotContain("zip", eml!.Targets, StringComparer.OrdinalIgnoreCase);
+    }
+
     private sealed class AlwaysCanConvert : ITargetPlanner
     {
         public bool CanConvert(string from, string to) => true;

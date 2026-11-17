@@ -161,6 +161,29 @@ public sealed class S9FrontendTests
         Assert.Contains("返回", manual);
     }
 
+    [Fact]
+    public void Frontend_ManualIsCompleteNotPlaceholder()
+    {
+        var manual = File.ReadAllText(Path.Combine(WwwRoot, "manual.html"));
+
+        // all sections present
+        foreach (var section in new[] { "功能介绍", "可转换类型", "使用方法", "任务与下载",
+                     "隐私与数据存储", "常见问题", "第三方协议", "关于" })
+            Assert.Contains(section, manual);
+
+        Assert.DoesNotContain("占位", manual);
+        Assert.DoesNotContain("placeholder", manual);
+        // real content markers
+        Assert.Contains("24 小时", manual);
+        Assert.Contains("全部下载", manual);
+        Assert.Contains("历史记录", manual);
+        Assert.Contains("LibreOffice", manual);
+        Assert.Contains("AGPL", manual);
+        Assert.Contains("<table", manual);
+        Assert.Contains("<details", manual);
+        Assert.DoesNotContain("https://", manual); // no external dependency
+    }
+
     // ---- 用户实测 2026-11-17 16:43 五项改动 ----
 
     [Fact]

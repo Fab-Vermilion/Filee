@@ -22,7 +22,12 @@ cp appsettings.local.json.example appsettings.local.json
 | `Sso.audience` | 令牌受众 | 一般等于 clientId |
 | `Tls.pfxPath` / `password` | 本地 HTTPS 证书与密码 | 自签证书仅本机联调用 |
 | `opsToken` | 运维接口令牌 | 自行生成；留空则关闭 `/api/ops/health` |
+| `Session.lifetimeHours` | 应用会话有效期（小时） | 默认 8 |
+| `Retention.*` | 文件/记录保留期、下载令牌有效期、清理扫描间隔 | 默认 24h / 24h / 1h；令牌期不短于文件期 |
+| `Storage.root` | Web 状态存储根目录 | 默认 `.filee-web`（相对项目根或绝对路径） |
 | `Limits.*` | 文件大小、并发、超时、SSE、LibreOffice 并行度 | 按需调整，均有默认值 |
+| `Sso.clockSkewMinutes` | 令牌时间校验偏差容忍 | 默认 5；调大等于放宽窗口 |
+| `Sso.wellKnownPath` | OIDC 发现端点路径 | 默认 `/.well-known/openid-configuration`，会真正传给 JWKS 提供器 |
 
 > **安全说明**：JSON 是明文存储。若需真正保密，请改用 Docker secret 或密钥管理服务注入。环境变量优先级高于 JSON（便于容器临时覆盖），不要把密钥写进命令行参数或日志。
 

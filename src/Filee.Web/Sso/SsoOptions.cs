@@ -18,15 +18,6 @@ public sealed record SsoOptions(
     public string EffectiveRedirectUri =>
         string.IsNullOrWhiteSpace(RedirectUri) ? DefaultRedirectUri : RedirectUri!;
 
-    public static SsoOptions FromEnvironment() => new(
-        Environment.GetEnvironmentVariable("FILEE_WEB_ISSUER") ?? "",
-        Environment.GetEnvironmentVariable("FILEE_WEB_AUDIENCE") ?? "",
-        Environment.GetEnvironmentVariable("FILEE_WEB_CLIENT_ID") ?? "",
-        Environment.GetEnvironmentVariable("FILEE_WEB_CLIENT_SECRET") ?? "",
-        (Environment.GetEnvironmentVariable("FILEE_WEB_ALLOWED_ORIGINS") ?? "")
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
-        Environment.GetEnvironmentVariable("FILEE_WEB_REDIRECT_URI"));
-
     /// <summary>Builds SSO options from the unified config file (env overrides already applied).</summary>
     public static SsoOptions FromConfig(Filee.Web.Configuration.AppConfig config) => new(
         config.Sso.Issuer, config.Sso.Audience, config.Sso.ClientId, config.Sso.ClientSecret,

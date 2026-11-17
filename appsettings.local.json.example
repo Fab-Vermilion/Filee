@@ -5,6 +5,22 @@
     "环境变量优先级高于本文件（便于容器/临时覆盖），对应变量名见每节注释。",
     "所有密钥均为明文存储；如需保密请改用 Docker secret / 密钥管理服务，不要把本文件提交或随部署包分发。"
   ],
+  "Session": {
+    "lifetimeHours": 8,
+    "_lifetimeHours": "应用会话有效期（小时），超时需重新免登。环境变量覆盖：FILEE_WEB_SESSION_HOURS"
+  },
+  "Retention": {
+    "fileAndRecordHours": 24,
+    "_fileAndRecordHours": "任务记录与转换文件保留时长（小时）。环境变量：FILEE_WEB_TTL_HOURS",
+    "downloadTokenHours": 24,
+    "_downloadTokenHours": "下载链接令牌有效期（小时），不短于文件保留期。环境变量：FILEE_WEB_TOKEN_TTL_HOURS",
+    "cleanupIntervalHours": 1,
+    "_cleanupIntervalHours": "过期文件清理扫描间隔（小时）。环境变量：FILEE_WEB_CLEANUP_HOURS"
+  },
+  "Storage": {
+    "root": ".filee-web",
+    "_root": "Web 层状态存储根目录（相对项目根或绝对路径），存放 uploads/work/output/jobs.db。环境变量：FILEE_WEB_STORAGE_ROOT"
+  },
   "Server": {
     "urls": "https://127.0.0.1:18799",
     "_urls": "Kestrel 监听地址，需与 WorkBuddy 控制台登记的免登回调地址同端口。环境变量覆盖：ASPNETCORE_URLS",
@@ -23,7 +39,9 @@
     "allowedRedirectOrigins": [],
     "_allowedRedirectOrigins": "允许的来源 origin 列表；本机联调可留空。环境变量：FILEE_WEB_ALLOWED_ORIGINS（逗号分隔）",
     "wellKnownPath": "/.well-known/openid-configuration",
-    "_wellKnownPath": "OIDC 发现端点路径，一般无需改"
+    "_wellKnownPath": "OIDC 发现端点路径，会真正发给 JwksProvider；一般无需改",
+    "clockSkewMinutes": 5,
+    "_clockSkewMinutes": "令牌有效期校验的时钟偏差容忍（分钟），调大等于放宽时间窗口。环境变量：FILEE_WEB_CLOCK_SKEW_MINUTES"
   },
   "Limits": {
     "maxFileBytes": 524288000,

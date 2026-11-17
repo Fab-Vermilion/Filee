@@ -13,20 +13,21 @@ using Filee.Web.Security;
 using Filee.Web.Sso;
 using Filee.Web.Streaming;
 
+// Single config source: appsettings.local.json (git-ignored) with env vars as overrides.
+// Load before everything so bootstrap and CreateBuilder both see ASPNETCORE_URLS/TLS/storage.
+var config = AppConfig.Load(Directory.GetCurrentDirectory(), Environment.GetEnvironmentVariable("FILEE_CONFIG"));
+
 // Explicit empty-database bootstrap for deployment: `dotnet run -- --init-db` creates the schema
 // via JobStore (the single source of truth) and exits, without starting the web host.
 if (args.Contains("--init-db", StringComparer.OrdinalIgnoreCase))
 {
     var bootstrapRoot = WebStoragePaths.FindRepositoryRoot(AppContext.BaseDirectory);
-    var bootstrapStorage = new WebStoragePaths(Path.Combine(bootstrapRoot, ".filee-web"));
+    var bootstrapStorage = new WebStoragePaths(Path.Combine(bootstrapRoot, config.Storage.Root));
     _ = new JobStore(bootstrapStorage.Database); // ctor runs CREATE TABLE IF NOT EXISTS
     Console.WriteLine($"数据库已就绪：{bootstrapStorage.Database}");
     return;
 }
 
-// Single config source: appsettings.local.json (git-ignored) with env vars as overrides.
-// Load before CreateBuilder so ASPNETCORE_URLS/TLS are picked up the same way as the shell env path.
-var config = AppConfig.Load(Directory.GetCurrentDirectory(), Environment.GetEnvironmentVariable("FILEE_CONFIG"));
 Environment.SetEnvironmentVariable("ASPNETCORE_URLS", config.Server.Urls);
 // Engines still read FILEE_LO_WORKERS from the environment; seed it from config when present.
 Environment.SetEnvironmentVariable("FILEE_LO_WORKERS", config.Limits.LoWorkers.ToString());
@@ -51,7 +52,7 @@ if (!string.IsNullOrWhiteSpace(pfxPath) && File.Exists(pfxPath))
 }
 
 var repositoryRoot = WebStoragePaths.FindRepositoryRoot(AppContext.BaseDirectory);
-var storage = new WebStoragePaths(Path.Combine(repositoryRoot, ".filee-web"));
+var storage = new WebStoragePaths(Path.Combine(repositoryRoot, config.Storage.Root));
 storage.Ensure();
 WorkFolders.SetRootOverride(storage.Work);
 EngineEnvironment.DownloadRoot = Path.Combine(repositoryRoot, "engines");
@@ -64,13 +65,14 @@ var registry = new WebJobRegistry();
 var limits = WebLimits.FromConfig(config);
 var progress = new ProgressHub();
 var sseOptions = new SseOptions(limits.SseBufferSize, limits.SseThrottleMs, limits.SseHeartbeatSeconds);
-var downloadTokens = new DownloadTokenService();
+var downloadTokens = new DownloadTokenService(TimeSpan.FromHours(config.Retention.DownloadTokenHours));
 var jobStore = new JobStore(storage.Database);
 var concurrencyGate = new WebConcurrencyGate(limits.MaxConcurrency);
 var ssoOptions = SsoOptions.FromConfig(config);
 var ssoHttp = new HttpClient();
-var jwks = new JwksProvider(ssoHttp, ssoOptions.Issuer);
-var tokenValidator = new OidcTokenValidator(jwks, ssoOptions.Issuer, ssoOptions.Audience);
+var jwks = new JwksProvider(ssoHttp, ssoOptions.Issuer, config.Sso.WellKnownPath);
+var tokenValidator = new OidcTokenValidator(jwks, ssoOptions.Issuer, ssoOptions.Audience,
+    TimeSpan.FromMinutes(config.Sso.ClockSkewMinutes));
 var tokenClient = new SsoTokenClient(ssoHttp, ssoOptions);
 var targetPlanner = new RoutePlannerAdapter(catalog);
 var formatCatalog = new FormatTargetCatalog(FormatRegistry.Known, targetPlanner);
@@ -84,8 +86,12 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.AddSingleton(config);
 builder.Services.AddSingleton(storage);
-builder.Services.AddHostedService<JobDirectoryCleaner>();
-builder.Services.AddSingleton<SessionService>();
+builder.Services.AddHostedService(sp => new JobDirectoryCleaner(
+    storage,
+    TimeSpan.FromHours(config.Retention.FileAndRecordHours),
+    TimeSpan.FromHours(config.Retention.CleanupIntervalHours),
+    sp.GetRequiredService<ILogger<JobDirectoryCleaner>>()));
+builder.Services.AddSingleton(new SessionService(TimeSpan.FromHours(config.Session.LifetimeHours)));
 builder.Services.AddSingleton<CsrfService>();
 builder.Services.AddSingleton(jobStore);
 builder.Services.AddSingleton(concurrencyGate);

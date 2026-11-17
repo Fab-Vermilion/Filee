@@ -212,6 +212,35 @@ public sealed class S6SsoUploadTests
         }
     }
 
+    [Fact]
+    public async Task JwksProvider_UsesConfiguredWellKnownPath()
+    {
+        var seen = new List<string>();
+        var handler = new CaptureUrlHandler(seen, Issuer);
+        var provider = new JwksProvider(new HttpClient(handler), Issuer, "/custom/.well-known/openid-configuration");
+
+        await provider.GetKeysAsync();
+
+        Assert.Contains($"{Issuer}/custom/.well-known/openid-configuration", seen);
+    }
+
+    private sealed class CaptureUrlHandler(List<string> seen, string issuer) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            seen.Add(request.RequestUri!.ToString());
+            if (request.RequestUri!.AbsolutePath.EndsWith("openid-configuration", StringComparison.Ordinal))
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(new { issuer, jwks_uri = issuer + "/jwks" }), Encoding.UTF8, "application/json")
+                });
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"keys\":[]}", Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
     private sealed class StubHttpHandler(Func<string> jwks) : HttpMessageHandler
     {
         private int _jwksCalls;

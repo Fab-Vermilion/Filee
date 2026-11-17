@@ -12,6 +12,9 @@ public sealed record AppConfig(
     AppSsoConfig Sso,
     AppLimitsConfig Limits,
     AppTlsConfig Tls,
+    AppSessionConfig Session,
+    AppRetentionConfig Retention,
+    AppStorageConfig Storage,
     string? OpsToken)
 {
     /// <summary>Path of the git-ignored local config, next to the app's content root.</summary>
@@ -39,6 +42,9 @@ public sealed record AppConfig(
                 Sso: AppSsoConfig.From(root),
                 Limits: AppLimitsConfig.From(root),
                 Tls: AppTlsConfig.From(root),
+                Session: AppSessionConfig.From(root),
+                Retention: AppRetentionConfig.From(root),
+                Storage: AppStorageConfig.From(root),
                 OpsToken: Str(root, "OpsToken", "opsToken", "FILEE_WEB_OPS_TOKEN"));
         }
     }

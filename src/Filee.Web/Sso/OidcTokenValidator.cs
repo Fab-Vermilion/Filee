@@ -7,9 +7,10 @@ namespace Filee.Web.Sso;
 /// Minimal RS256 id_token validation: fixed issuer, configured audience, JWKS by kid, one refresh on unknown kid,
 /// fail-closed otherwise.
 /// </summary>
-public sealed class OidcTokenValidator(JwksProvider jwks, string issuer, string audience)
+public sealed class OidcTokenValidator(JwksProvider jwks, string issuer, string audience, TimeSpan? clockSkew = null)
 {
     private readonly JsonWebTokenHandler _handler = new();
+    private readonly TimeSpan _clockSkew = clockSkew ?? TimeSpan.FromMinutes(5);
 
     public async Task<SsoIdentity> ValidateAsync(string token)
     {
@@ -52,6 +53,6 @@ public sealed class OidcTokenValidator(JwksProvider jwks, string issuer, string 
             ValidateIssuerSigningKey = true,
             IssuerSigningKeys = keys,
             ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
-            ClockSkew = TimeSpan.FromMinutes(5),
+            ClockSkew = _clockSkew,
         });
 }

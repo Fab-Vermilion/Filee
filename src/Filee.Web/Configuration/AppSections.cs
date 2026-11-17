@@ -23,7 +23,7 @@ public sealed record AppServerConfig(string Urls, string RedirectUri)
 /// <summary>OIDC / self-built app SSO settings. Secrets come from the local JSON or env vars.</summary>
 public sealed record AppSsoConfig(
     string Issuer, string Audience, string ClientId, string ClientSecret,
-    string[] AllowedRedirectOrigins, string WellKnownPath)
+    string[] AllowedRedirectOrigins, string WellKnownPath, int ClockSkewMinutes)
 {
     public const string DefaultWellKnownPath = "/.well-known/openid-configuration";
 
@@ -38,7 +38,8 @@ public sealed record AppSsoConfig(
             ClientId: clientId,
             ClientSecret: AppConfig.Str(section, "clientSecret", "ClientSecret", "FILEE_WEB_CLIENT_SECRET") ?? "",
             AllowedRedirectOrigins: AppConfig.List(section, "allowedRedirectOrigins", "AllowedRedirectOrigins", "FILEE_WEB_ALLOWED_ORIGINS"),
-            WellKnownPath: AppConfig.Str(section, "wellKnownPath", "WellKnownPath") ?? DefaultWellKnownPath);
+            WellKnownPath: AppConfig.Str(section, "wellKnownPath", "WellKnownPath") ?? DefaultWellKnownPath,
+            ClockSkewMinutes: AppConfig.Int(section, "clockSkewMinutes", "ClockSkewMinutes", "FILEE_WEB_CLOCK_SKEW_MINUTES", 5));
     }
 }
 
@@ -70,5 +71,42 @@ public sealed record AppTlsConfig(string? PfxPath, string Password)
         return new AppTlsConfig(
             PfxPath: AppConfig.Str(s, "pfxPath", "PfxPath", "FILEE_WEB_TLS_PFX"),
             Password: AppConfig.Str(s, "password", "Password", "FILEE_WEB_TLS_PASSWORD") ?? "");
+    }
+}
+
+/// <summary>Application session lifetime (was hardcoded at 8h in SessionService).</summary>
+public sealed record AppSessionConfig(int LifetimeHours)
+{
+    public static AppSessionConfig From(JsonElement? root)
+    {
+        var s = AppConfig.Section(root, "Session");
+        return new AppSessionConfig(
+            AppConfig.Int(s, "lifetimeHours", "LifetimeHours", "FILEE_WEB_SESSION_HOURS", 8));
+    }
+}
+
+/// <summary>Retention of jobs/files/tokens and the cleanup sweep interval.</summary>
+public sealed record AppRetentionConfig(
+    int FileAndRecordHours, int DownloadTokenHours, int CleanupIntervalHours)
+{
+    public static AppRetentionConfig From(JsonElement? root)
+    {
+        var s = AppConfig.Section(root, "Retention");
+        return new AppRetentionConfig(
+            FileAndRecordHours: AppConfig.Int(s, "fileAndRecordHours", "FileAndRecordHours", "FILEE_WEB_TTL_HOURS", 24),
+            DownloadTokenHours: AppConfig.Int(s, "downloadTokenHours", "DownloadTokenHours", "FILEE_WEB_TOKEN_TTL_HOURS", 24),
+            CleanupIntervalHours: AppConfig.Int(s, "cleanupIntervalHours", "CleanupIntervalHours", "FILEE_WEB_CLEANUP_HOURS", 1));
+    }
+}
+
+/// <summary>Where Web-layer state is stored (was hardcoded ".filee-web").</summary>
+public sealed record AppStorageConfig(string Root)
+{
+    public const string DefaultRoot = ".filee-web";
+    public static AppStorageConfig From(JsonElement? root)
+    {
+        var s = AppConfig.Section(root, "Storage");
+        return new AppStorageConfig(
+            AppConfig.Str(s, "root", "Root", "FILEE_WEB_STORAGE_ROOT") ?? DefaultRoot);
     }
 }

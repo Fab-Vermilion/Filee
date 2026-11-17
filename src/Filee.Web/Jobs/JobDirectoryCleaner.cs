@@ -4,8 +4,8 @@ namespace Filee.Web.Jobs;
 
 /// <summary>
 /// Background host service that removes stale per-job upload/output directories. Implements the plan's §A3
-/// temporary-file TTL cleanup; download tokens expire earlier (1h) while files live longer so a user can
-/// finish a download, then get reclaimed so an always-on server does not accumulate user data forever.
+/// temporary-file TTL cleanup. File/record/token retention are configured in AppConfig.Retention (default 24h
+/// each) so a user can finish a download within the window, then data is reclaimed on an always-on server.
 /// </summary>
 public sealed class JobDirectoryCleaner(WebStoragePaths storage, TimeSpan ttl, TimeSpan interval, ILogger<JobDirectoryCleaner> logger)
     : BackgroundService

@@ -11,13 +11,17 @@ public sealed class JwksProvider
 {
     private readonly HttpClient _http;
     private readonly string _issuer;
+    private readonly string _wellKnownPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private IReadOnlyList<SecurityKey>? _keys;
 
-    public JwksProvider(HttpClient http, string issuer)
+    public JwksProvider(HttpClient http, string issuer, string? wellKnownPath = null)
     {
         _http = http;
         _issuer = issuer.TrimEnd('/');
+        _wellKnownPath = string.IsNullOrWhiteSpace(wellKnownPath)
+            ? "/.well-known/openid-configuration"
+            : wellKnownPath!;
     }
 
     public async Task<IReadOnlyList<SecurityKey>> GetKeysAsync(bool forceRefresh = false)
@@ -31,7 +35,7 @@ public sealed class JwksProvider
             if (!forceRefresh && _keys is not null)
                 return _keys;
 
-            using var discoveryResponse = await _http.GetAsync($"{_issuer}/.well-known/openid-configuration");
+            using var discoveryResponse = await _http.GetAsync($"{_issuer}{_wellKnownPath}");
             discoveryResponse.EnsureSuccessStatusCode();
             using var discovery = JsonDocument.Parse(await discoveryResponse.Content.ReadAsStringAsync());
             var jwksUri = discovery.RootElement.GetProperty("jwks_uri").GetString();

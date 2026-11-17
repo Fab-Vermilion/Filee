@@ -79,6 +79,21 @@ public sealed class S2FilteringTests
         Assert.Contains("eml", byId["jpg"].Targets);
     }
 
+    [Fact]
+    public void FormatTargetCatalog_ExposesVideoToAnimatedWebp()
+    {
+        // Real FFmpeg converter edges (no engine binary needed) + the real registry/target catalog.
+        // Confirms the upstream "video -> animated WebP" capability is visible through /api/formats.
+        var converters = WebConversionAssembly.CreateConverters(
+            new Filee.Engines.Infrastructure.EngineEnvironment(Path.GetTempPath()));
+        var catalog = new FormatTargetCatalog(
+            Filee.Core.Formats.FormatRegistry.Known,
+            new RoutePlannerAdapter(new Filee.Core.Conversion.ConverterCatalog(converters)));
+
+        var mp4 = catalog.Build().First(f => f.Id == "mp4");
+        Assert.Contains("webp", mp4.Targets);
+    }
+
     private sealed class AlwaysCanConvert : ITargetPlanner
     {
         public bool CanConvert(string from, string to) => true;

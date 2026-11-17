@@ -1,0 +1,52 @@
+{
+  "_readme": [
+    "复制本文件为 appsettings.local.json 并填写真实值；该文件已被 .gitignore 忽略，不会进代码库、也不会写入数据库。",
+    "一键启动：在项目根目录运行 ./start.sh（它会用本文件启动服务）。",
+    "环境变量优先级高于本文件（便于容器/临时覆盖），对应变量名见每节注释。",
+    "所有密钥均为明文存储；如需保密请改用 Docker secret / 密钥管理服务，不要把本文件提交或随部署包分发。"
+  ],
+  "Server": {
+    "urls": "https://127.0.0.1:18799",
+    "_urls": "Kestrel 监听地址，需与 WorkBuddy 控制台登记的免登回调地址同端口。环境变量覆盖：ASPNETCORE_URLS",
+    "redirectUri": "https://127.0.0.1:18799/sso",
+    "_redirectUri": "自建应用免登回调地址，必须与控制台登记值完全一致。环境变量覆盖：FILEE_WEB_REDIRECT_URI"
+  },
+  "Sso": {
+    "issuer": "https://<从 Client_profile 的 well-known 端点 discovery 得到 issuer>",
+    "_issuer": "签发方地址。取法：读取 Client_profile 里的 .well-known/openid-configuration URL，访问后取响应里的 issuer 字段。环境变量：FILEE_WEB_ISSUER",
+    "audience": "<同 clientId，一般填应用 Client ID>",
+    "_audience": "令牌受众。环境变量：FILEE_WEB_AUDIENCE",
+    "clientId": "<Client_profile 中的 Client ID>",
+    "_clientId": "自建应用 Client ID。环境变量：FILEE_WEB_CLIENT_ID",
+    "clientSecret": "<Client_profile 中的 Client Secret>",
+    "_clientSecret": "自建应用 Client Secret（密钥）。环境变量：FILEE_WEB_CLIENT_SECRET",
+    "allowedRedirectOrigins": [],
+    "_allowedRedirectOrigins": "允许的来源 origin 列表；本机联调可留空。环境变量：FILEE_WEB_ALLOWED_ORIGINS（逗号分隔）",
+    "wellKnownPath": "/.well-known/openid-configuration",
+    "_wellKnownPath": "OIDC 发现端点路径，一般无需改"
+  },
+  "Limits": {
+    "maxFileBytes": 524288000,
+    "_maxFileBytes": "单文件大小上限（字节），默认 500MB。环境变量：FILEE_WEB_MAX_FILE_BYTES",
+    "maxConcurrency": 4,
+    "_maxConcurrency": "最大并发任务数。环境变量：FILEE_WEB_MAX_CONCURRENCY",
+    "jobTimeoutMinutes": 10,
+    "_jobTimeoutMinutes": "单任务超时（分钟）。环境变量：FILEE_WEB_JOB_TIMEOUT_MINUTES",
+    "sseThrottleMs": 150,
+    "_sseThrottleMs": "进度事件节流（毫秒）。环境变量：FILEE_WEB_SSE_THROTTLE_MS",
+    "sseBufferSize": 200,
+    "_sseBufferSize": "进度事件内存缓冲条数。环境变量：FILEE_WEB_SSE_BUFFER_SIZE",
+    "sseHeartbeatSeconds": 15,
+    "_sseHeartbeatSeconds": "心跳间隔（秒）。环境变量：FILEE_WEB_SSE_HEARTBEAT_SECONDS",
+    "loWorkers": 1,
+    "_loWorkers": "LibreOffice 并行度；macOS 建议 1 避免多进程启停冲突。环境变量：FILEE_LO_WORKERS"
+  },
+  "Tls": {
+    "pfxPath": ".filee-web/certs/localhost.pfx",
+    "_pfxPath": "本地 HTTPS 证书路径（相对项目根目录）；留空则不加载自定义证书。环境变量：FILEE_WEB_TLS_PFX",
+    "password": "devonly",
+    "_password": "证书密码（密钥）。环境变量：FILEE_WEB_TLS_PASSWORD"
+  },
+  "opsToken": "<运维接口令牌，留空则关闭 /api/ops/health>",
+  "_opsToken": "运维健康检查令牌（密钥）。环境变量：FILEE_WEB_OPS_TOKEN"
+}

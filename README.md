@@ -13,7 +13,8 @@
   <a href="https://www.linkedin.com/company/filee-sh/"><b>LinkedIn</b></a> ·
   <a href="#install">Install</a> ·
   <a href="#command-line">Command line</a> ·
-  <a href="#development">Development</a>
+  <a href="#development">Development</a> ·
+  <a href="DEPLOY.md"><b>WorkBuddy 自建应用部署与配置</b></a>
 </p>
 
 <p align="center">

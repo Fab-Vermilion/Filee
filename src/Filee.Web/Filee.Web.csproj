@@ -12,4 +12,12 @@
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
   </ItemGroup>
+
+  <!-- Deployment never ships a database; it is created on first run or via init-db.sh. -->
+  <ItemGroup>
+    <Content Remove="**/*.db" />
+    <None Remove="**/*.db" />
+    <Content Remove="appsettings.local.json" />
+    <None Remove="appsettings.local.json" />
+  </ItemGroup>
 </Project>

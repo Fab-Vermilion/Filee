@@ -32,6 +32,7 @@ Thumbs.db
 
 # Local real credentials (never commit)
 Client_profile
+appsettings.local.json
 
 # Fonts are downloaded by build/fetch-fonts.ps1
 src/Filee.App/Assets/Fonts/*.ttf

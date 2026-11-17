@@ -20,6 +20,12 @@ public sealed record WebLimits(
         ReadInt("FILEE_WEB_SSE_BUFFER_SIZE", Default.SseBufferSize),
         ReadInt("FILEE_WEB_SSE_HEARTBEAT_SECONDS", Default.SseHeartbeatSeconds));
 
+    /// <summary>Builds limits from the unified config file (env overrides already applied).</summary>
+    public static WebLimits FromConfig(Filee.Web.Configuration.AppConfig config) => new(
+        config.Limits.MaxFileBytes, config.Limits.MaxConcurrency,
+        TimeSpan.FromMinutes(config.Limits.JobTimeoutMinutes),
+        config.Limits.SseThrottleMs, config.Limits.SseBufferSize, config.Limits.SseHeartbeatSeconds);
+
     private static long ReadLong(string name, long fallback) =>
         long.TryParse(Environment.GetEnvironmentVariable(name), out var value) && value > 0 ? value : fallback;
 

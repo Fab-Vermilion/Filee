@@ -4,6 +4,7 @@ using Filee.Core.Conversion;
 using Filee.Core.Formats;
 using Filee.Core.Platform;
 using Filee.Engines.Infrastructure;
+using Filee.Web.Configuration;
 using Filee.Web.Contracts;
 using Filee.Web.Conversion;
 using Filee.Web.Jobs;
@@ -12,14 +13,41 @@ using Filee.Web.Security;
 using Filee.Web.Sso;
 using Filee.Web.Streaming;
 
-var builder = WebApplication.CreateBuilder(args);
-
-var tlsPfx = Environment.GetEnvironmentVariable("FILEE_WEB_TLS_PFX");
-if (!string.IsNullOrWhiteSpace(tlsPfx) && File.Exists(tlsPfx))
+// Explicit empty-database bootstrap for deployment: `dotnet run -- --init-db` creates the schema
+// via JobStore (the single source of truth) and exits, without starting the web host.
+if (args.Contains("--init-db", StringComparer.OrdinalIgnoreCase))
 {
-    var password = Environment.GetEnvironmentVariable("FILEE_WEB_TLS_PASSWORD") ?? "";
+    var bootstrapRoot = WebStoragePaths.FindRepositoryRoot(AppContext.BaseDirectory);
+    var bootstrapStorage = new WebStoragePaths(Path.Combine(bootstrapRoot, ".filee-web"));
+    _ = new JobStore(bootstrapStorage.Database); // ctor runs CREATE TABLE IF NOT EXISTS
+    Console.WriteLine($"数据库已就绪：{bootstrapStorage.Database}");
+    return;
+}
+
+// Single config source: appsettings.local.json (git-ignored) with env vars as overrides.
+// Load before CreateBuilder so ASPNETCORE_URLS/TLS are picked up the same way as the shell env path.
+var config = AppConfig.Load(Directory.GetCurrentDirectory(), Environment.GetEnvironmentVariable("FILEE_CONFIG"));
+Environment.SetEnvironmentVariable("ASPNETCORE_URLS", config.Server.Urls);
+// Engines still read FILEE_LO_WORKERS from the environment; seed it from config when present.
+Environment.SetEnvironmentVariable("FILEE_LO_WORKERS", config.Limits.LoWorkers.ToString());
+if (!string.IsNullOrWhiteSpace(config.Tls.PfxPath))
+    Environment.SetEnvironmentVariable("FILEE_WEB_TLS_PFX", config.Tls.PfxPath);
+if (!string.IsNullOrWhiteSpace(config.Tls.Password))
+    Environment.SetEnvironmentVariable("FILEE_WEB_TLS_PASSWORD", config.Tls.Password);
+
+var builder = WebApplication.CreateBuilder(args);
+// Resolve a relative certificate path against the content root so it works from any cwd.
+var pfxPath = string.IsNullOrWhiteSpace(config.Tls.PfxPath)
+    ? null
+    : Path.IsPathRooted(config.Tls.PfxPath)
+        ? config.Tls.PfxPath
+        : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), config.Tls.PfxPath!));
+if (!string.IsNullOrWhiteSpace(pfxPath) && File.Exists(pfxPath))
+{
+    Environment.SetEnvironmentVariable("FILEE_WEB_TLS_PFX", pfxPath);
     builder.WebHost.ConfigureKestrel(options =>
-        options.ConfigureHttpsDefaults(https => https.ServerCertificate = X509CertificateLoader.LoadPkcs12FromFile(tlsPfx, password)));
+        options.ConfigureHttpsDefaults(https => https.ServerCertificate =
+            X509CertificateLoader.LoadPkcs12FromFile(pfxPath!, config.Tls.Password)));
 }
 
 var repositoryRoot = WebStoragePaths.FindRepositoryRoot(AppContext.BaseDirectory);
@@ -33,13 +61,13 @@ var converters = WebConversionAssembly.CreateConverters(engineEnvironment);
 var catalog = new ConverterCatalog(converters);
 var queue = new JobQueue(catalog);
 var registry = new WebJobRegistry();
-var limits = WebLimits.FromEnvironment();
+var limits = WebLimits.FromConfig(config);
 var progress = new ProgressHub();
 var sseOptions = new SseOptions(limits.SseBufferSize, limits.SseThrottleMs, limits.SseHeartbeatSeconds);
 var downloadTokens = new DownloadTokenService();
 var jobStore = new JobStore(storage.Database);
 var concurrencyGate = new WebConcurrencyGate(limits.MaxConcurrency);
-var ssoOptions = SsoOptions.FromEnvironment();
+var ssoOptions = SsoOptions.FromConfig(config);
 var ssoHttp = new HttpClient();
 var jwks = new JwksProvider(ssoHttp, ssoOptions.Issuer);
 var tokenValidator = new OidcTokenValidator(jwks, ssoOptions.Issuer, ssoOptions.Audience);
@@ -54,6 +82,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
+builder.Services.AddSingleton(config);
 builder.Services.AddSingleton(storage);
 builder.Services.AddHostedService<JobDirectoryCleaner>();
 builder.Services.AddSingleton<SessionService>();
@@ -98,7 +127,7 @@ queue.JobFinished += (_, job) =>
         .ToArray();
     registry.SetOutputs(webId, outputs);
     // Persist names so a later process (restart / page reload) can still offer history downloads.
-    jobStore.UpdateOutputFiles(webId, outputs.Where(p => !string.IsNullOrEmpty(p)).Select(Path.GetFileName).ToArray());
+    jobStore.UpdateOutputFiles(webId, outputs.Where(p => !string.IsNullOrEmpty(p)).Select(p => Path.GetFileName(p)!).ToArray());
     // Safety net: if the engine still reports Running although every file is done, persist a terminal
     // status so the UI never sticks on "进行中" with downloadable outputs already present.
     var status = JobFinalStatus.Resolve(job);
@@ -110,9 +139,9 @@ queue.JobFinished += (_, job) =>
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
-app.MapGet("/api/ops/health", async Task<IResult> (HttpContext context, OpsHealthService ops) =>
+app.MapGet("/api/ops/health", async Task<IResult> (HttpContext context, OpsHealthService ops, AppConfig appConfig) =>
 {
-    var expected = Environment.GetEnvironmentVariable("FILEE_WEB_OPS_TOKEN");
+    var expected = appConfig.OpsToken;
     if (string.IsNullOrEmpty(expected) || context.Request.Headers["X-Ops-Token"].ToString() != expected)
         return ApiProblem.Unauthenticated();
     return Results.Ok(await ops.GetAsync());

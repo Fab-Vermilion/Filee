@@ -128,7 +128,8 @@ public sealed class S9FrontendTests
         Assert.DoesNotContain("createElementNS", js);      // 不再画 SVG 甜甜圈
         Assert.DoesNotContain("class=\"seg\"", js);
         Assert.Contains("container-type: inline-size", css); // 按容器自适应
-        Assert.Contains("clamp(", css);                      // 流式字号
+        Assert.Contains("repeat(auto-fill", css);            // 方块不拉伸铺满
+        Assert.Contains("clamp(10px, 2.5cqi, 20px)", css);   // 加大间距
         Assert.Contains("aria-pressed", js);                 // 选中态可访问
         Assert.Contains(":focus-visible", css);
     }
@@ -180,12 +181,13 @@ public sealed class S9FrontendTests
     }
 
     [Fact]
-    public void Frontend_ClearsJobListBeforeNewJob()
+    public void Frontend_ClearsFileListOnSubmit_KeepsProgressHistory()
     {
         var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
 
-        Assert.Contains("state.jobs.clear()", js);
-        Assert.Contains("state.sources", js);
+        Assert.Contains("onFilesChanged([])", js);            // 提交后清空「1 添加文件」列表
+        Assert.DoesNotContain("state.jobs.clear()", js);      // 「3 任务进度」不清空，保留到 TTL
+        Assert.DoesNotContain("state.sources.clear()", js);
     }
 
     [Fact]
@@ -200,12 +202,13 @@ public sealed class S9FrontendTests
     }
 
     [Fact]
-    public void Frontend_HasDownloadAllArchiveButton()
+    public void Frontend_DownloadAllOnlyForBatch_OnStatusRow()
     {
         var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
 
-        Assert.Contains("archiveUrl", js);
+        Assert.Contains("downloadable.length > 1", js);   // 只在多个下载文件时出现
         Assert.Contains("全部下载", js);
+        Assert.Contains("title.appendChild", js);        // 放在状态行（进度条上方）
         Assert.Contains("archive-link", js);
     }
 }

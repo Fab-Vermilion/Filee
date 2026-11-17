@@ -130,16 +130,17 @@ p { margin: 6px 0; color: var(--text-secondary); font-size: 13px; }
 .donut-wrap .target-grid {
   display: grid;
   /* responsive unknown item count: auto-fit stretches the last row */
-  grid-template-columns: repeat(auto-fit, minmax(clamp(76px, 22cqi, 120px), 1fr));
-  gap: clamp(6px, 1.5cqi, 12px);
-  width: 100%; padding: 4px 0;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(64px, 16cqi, 88px), 96px));
+  gap: clamp(10px, 2.5cqi, 20px);
+  width: 100%; padding: 6px 0;
+  justify-content: start;
 }
 .target-chip {
-  /* fluid type within 0.75–1.25rem; font-relative bounds keep zoom working */
-  font-size: clamp(0.75rem, 0.6rem + 2cqi, 1.25rem);
+  /* fluid type within 0.75–1.125rem; font-relative bounds keep zoom working */
+  font-size: clamp(0.75rem, 0.65rem + 1.5cqi, 1.125rem);
   font-weight: 600; letter-spacing: .02em;
-  min-height: clamp(38px, 12cqi, 56px);
-  padding: 8px 6px; border-radius: 10px;
+  min-height: clamp(34px, 9cqi, 46px);
+  padding: 7px 12px; border-radius: 10px;
   border: 1.5px solid var(--border-strong);
   background: var(--surface-1); color: var(--text-secondary);
   cursor: pointer; transition: background .16s, border-color .16s, color .16s, transform .16s;

@@ -277,10 +277,10 @@ async function submitJob() {
   });
   if (!response.ok) { setMessage("提交失败，请刷新页面重试。"); if (response.status === 401) await requestRelogin(); return; }
   const payload = await response.json();
-  // 新任务开始：关闭旧任务的进度流并清空列表，避免新文件附加到旧任务后面
-  for (const source of state.sources.values()) source.close();
-  state.sources.clear();
-  state.jobs.clear();
+  // 任务提交后清空「1 添加文件」的文件列表，方便下一批；「3 任务进度」保留累积，
+  // 与服务端 TTL 清理同步（历史任务在有效期内仍可查看/下载）。
+  elements.files.value = "";
+  onFilesChanged([]);
   setMessage("任务已创建。");
   trackJob(payload.jobId);
 }
@@ -327,21 +327,21 @@ function renderJobs() {
     const failed = raw === "failed" || raw === "completedwitherrors";
     title.textContent = statusLabel(raw);
     if (failed) title.classList.add("fail");
+    // 「全部下载」只在批量（>1 个下载文件）时显示，放在状态行、进度条上方
+    const downloadable = (job.files || []).filter(f => f.downloadUrl);
+    if (downloadable.length > 1 && job.archiveUrl)
+      title.appendChild(Object.assign(document.createElement("a"), {
+        href: job.archiveUrl, className: "archive-link", textContent: "全部下载 (zip)",
+      }));
     const bar = document.createElement("div"); bar.className = "bar";
     const fill = document.createElement("span"); fill.style.width = `${Math.round((job.progress || 0) * 100)}%`;
     bar.appendChild(fill); row.append(title, bar);
 
     const links = document.createElement("div"); links.className = "job-links";
-    for (const file of job.files || []) {
-      if (!file.downloadUrl) continue;
+    for (const file of downloadable) {
       const link = document.createElement("a"); link.href = file.downloadUrl; link.textContent = `下载 ${file.name}`;
       links.appendChild(link);
     }
-    // 全部下载：服务端把该任务所有输出打包成 zip，一次点击一次下载（避开多文件下载被拦截）
-    if ((job.files || []).some(f => f.downloadUrl) && job.archiveUrl)
-      links.appendChild(Object.assign(document.createElement("a"), {
-        href: job.archiveUrl, className: "archive-link", textContent: "全部下载 (zip)",
-      }));
     row.appendChild(links);
     elements.jobs.appendChild(row);
   }

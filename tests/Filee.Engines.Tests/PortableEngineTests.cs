@@ -170,6 +170,33 @@ public sealed class PortableEngineTests : IDisposable
         Assert.Equal(dataMode, File.GetUnixFileMode(readme));
     }
 
+    [Fact]
+    public void PortableFfmpeg_IsLocatedAndHasLibwebpEncoder()
+    {
+        // The portable ffmpeg placed under the repository's engines/ must win over any system copy on PATH.
+        var located = Filee.Engines.Media.FfmpegConverter.Locate();
+        Assert.NotNull(located);
+        Assert.Contains($"engines{Path.DirectorySeparatorChar}ffmpeg", located!.Value.Ffmpeg);
+        Assert.True(File.Exists(located.Value.Ffmpeg));
+        Assert.True(File.Exists(located.Value.Ffprobe));
+
+        var encoders = Filee.Engines.Media.FfmpegConverter.EncodersOfAsync(
+            located.Value.Ffmpeg, TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+        Assert.NotNull(encoders);
+        Assert.Contains("libwebp_anim", encoders!);
+    }
+
+    [Fact]
+    public void PortableGhostscript_IsLocatedInEnginesFolder()
+    {
+        var folder = EngineEnvironment.FindBundled("ghostscript") is { } bundled
+            ? EngineEnvironment.FolderWithPrograms("ghostscript", bundled)
+            : null;
+        Assert.NotNull(folder);
+        Assert.Contains($"engines{Path.DirectorySeparatorChar}ghostscript", folder!);
+        Assert.True(File.Exists(Path.Combine(folder!, EngineEnvironment.ProgramName("gswin64c.exe"))));
+    }
+
     private string TarGzip(params TarEntry[] entries)
     {
         var file = Path.Combine(_root, Guid.NewGuid().ToString("N") + ".tar.gz");

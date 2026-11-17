@@ -1589,6 +1589,21 @@ public class MediaTests(EngineFixture fx) : IClassFixture<EngineFixture>
     }
 
     [Fact]
+    public async Task Mp4_really_converts_to_an_animated_webp_with_portable_ffmpeg()
+    {
+        SkipUnlessInstalled();
+        var source = await MakeClipAsync(fx.NewFolder(), "clip.mp4", seconds: 1, size: "160x120",
+            extra: ["-c:v", "libx264", "-c:a", "aac"]);
+        var output = await ConvertAsync(source, "webp");
+
+        Assert.True(File.Exists(output));
+        Assert.True(new FileInfo(output).Length > 0);
+        // ffprobe must see a webp stream (a still-only result would mean the old PNG-step path).
+        var probed = await ProbeAsync(output);
+        Assert.NotNull(probed.Video);
+    }
+
+    [Fact]
     public void A_still_picture_is_shown_for_five_seconds_at_full_size()
     {
         var photo = new MediaInfo(null, new VideoStreamInfo(4033, 3025, 1, 0, 25), null, null);

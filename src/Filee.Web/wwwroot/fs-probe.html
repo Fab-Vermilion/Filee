@@ -33,14 +33,15 @@
     <section class="card">
       <h2 class="pane-title">一、环境检测（自动）</h2>
       <div id="probe-env"></div>
-      <p class="subtle" style="margin-top:10px">若"是否在 iframe 内"=是，但"目录授权"=否，说明 WorkBuddy 客户端未放行文件系统权限，直存方案在该环境不可用。</p>
+      <p class="subtle" style="margin-top:10px">真机实测结论（2026-11-17）：目录框能弹、句柄能拿到，但两条写入路径（A 目录 / B 单文件另存）均抛 <code>NotAllowedError</code>——WorkBuddy 客户端（Electron 37）的权限处理器未放行 fileSystem 写权限，Web 页面无法绕过。直存方案在当前客户端结项，保持现有下载 + 服务端 TTL 清理。</p>
     </section>
 
     <section class="card">
       <h2 class="pane-title">二、写入测试（需点击）</h2>
-      <p>点击按钮后会弹出系统目录选择框，请选择一个用来测试的目录。页面会在该目录创建一个 <code>filee-probe.txt</code> 文件，写入后读回校验，并显示结果。</p>
+      <p>两条路径都试一遍，判断哪条能写。<strong>路径 A</strong>：选目录后批量写入（批量转换用这条）。<strong>路径 B</strong>：单个文件另存。两个按钮都会弹系统对话框，请各选一个普通目录/文件名。</p>
       <div class="probe-actions">
-        <button id="probe-run" type="button">选择目录并写入测试文件</button>
+        <button id="probe-run" type="button">A · 选目录并写入测试文件</button>
+        <button id="probe-save" type="button">B · 单文件另存测试</button>
         <button id="probe-clean" type="button" class="ghost" hidden>删除测试文件</button>
       </div>
       <div id="probe-log" role="status">尚未测试。</div>
@@ -53,6 +54,7 @@
       var env = document.getElementById("probe-env");
       var logBox = document.getElementById("probe-log");
       var btnRun = document.getElementById("probe-run");
+      var btnSave = document.getElementById("probe-save");
       var btnClean = document.getElementById("probe-clean");
       var dirHandle = null;
       var PROBE_FILE = "filee-probe.txt";
@@ -89,7 +91,11 @@
 
       if (!hasApi) {
         btnRun.disabled = true;
-        log("检测结束：当前浏览器不支持 showDirectoryPicker，直存方案不可用（可继续用现有下载按钮）。");
+        log("检测结束：当前浏览器不支持 showDirectoryPicker，路径 A 不可用（仍可试路径 B 或继续用现有下载按钮）。");
+      }
+      if (typeof window.showSaveFilePicker !== "function") {
+        btnSave.disabled = true;
+        log("检测：当前浏览器不支持 showSaveFilePicker，路径 B 不可用。");
       }
 
       btnRun.addEventListener("click", async function () {
@@ -118,10 +124,41 @@
           var name = e && e.name ? e.name : "Error";
           var msg = e && e.message ? e.message : String(e);
           log("失败：" + name + " — " + msg);
-          if (name === "SecurityError")
+          if (name === "NotAllowedError")
+            log("判断：目录框能弹但写入被拒 —— WorkBuddy 客户端（Electron）的权限处理器未放行 fileSystem 写权限。这是客户端主进程设置，Web 页面无法绕过。请再试路径 B 确认。");
+          else if (name === "SecurityError")
             log("判断：被同源策略或 iframe 权限策略拦截。WorkBuddy 客户端需给菜单 iframe 放通 fs 权限，否则该环境不可用。");
           else if (name === "AbortError")
             log("判断：你取消了目录选择，或所选目录被浏览器判定为敏感目录。可换一个普通目录重试。");
+          else
+            log("判断：其它错误，请把本页截图发给开发者。");
+        }
+      });
+
+      btnSave.addEventListener("click", async function () {
+        logBox.textContent = "";
+        log("路径 B：单文件另存测试开始…");
+        try {
+          if (typeof window.showSaveFilePicker !== "function")
+            throw new Error("showSaveFilePicker 不存在（浏览器不支持）");
+          var fileHandle = await window.showSaveFilePicker({
+            suggestedName: "filee-probe-b.txt",
+            types: [{ description: "文本文件", accept: { "text/plain": [".txt"] } }],
+          });
+          log("文件句柄获取成功：" + fileHandle.name);
+          var writable = await fileHandle.createWritable();
+          await writable.write(new Blob(["filee fs probe B ok\n"], { type: "text/plain" }));
+          await writable.close();
+          log("写入成功，读回校验：" + JSON.stringify((await (await fileHandle.getFile()).text()).trim()));
+          log("结论：路径 B（单文件另存）可行 ✅ —— 批量时逐个弹保存框可作为备选方案。");
+        } catch (e) {
+          var n = e && e.name ? e.name : "Error";
+          var m = e && e.message ? e.message : String(e);
+          log("失败：" + n + " — " + m);
+          if (n === "NotAllowedError")
+            log("判断：写入同样被 Electron 权限处理器拒绝 —— 两条路径均不通，当前客户端无法直存，请保持现有下载方案。");
+          else if (n === "AbortError")
+            log("判断：你取消了保存。可重试并选一个普通文件名/目录。");
           else
             log("判断：其它错误，请把本页截图发给开发者。");
         }

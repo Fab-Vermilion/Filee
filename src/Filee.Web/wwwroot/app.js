@@ -245,6 +245,7 @@ function renderDonut(targets) {
     btn.className = "target-chip";
     btn.dataset.target = id;
     btn.textContent = id.toUpperCase();
+    btn.title = id.toUpperCase(); // 长名字截断时仍可悬停看全称
     btn.setAttribute("aria-pressed", String(id === state.target));
     btn.addEventListener("click", () => selectTarget(id));
     grid.appendChild(btn);
@@ -326,12 +327,17 @@ const STATUS_LABELS = {
   completedwitherrors: "已完成（部分失败）", completed_with_errors: "已完成（部分失败）",
   failed: "失败", cancelled: "已取消", interrupted: "已中断",
 };
+const FILE_TERMINAL = ["done", "skipped", "failed", "cancelled"];
 function resolvedStatus(job) {
   const raw = (job.status || "queued").toLowerCase();
-  // 兜底：进度满且有下载文件时，即使摘要状态滞后也按已完成展示
-  if (raw === "running" && (job.progress || 0) >= 0.9999 &&
-      (job.files || []).some(f => f.downloadUrl))
-    return "completed";
+  if (raw === "running") {
+    // 批量任务的平均进度可能停在 0.9x（引擎逐文件上报差异），不能看 progress；
+    // 只要每个源文件都到终态且有输出，就按已完成展示。
+    const files = job.files || [];
+    if (files.length && files.every(f => FILE_TERMINAL.includes((f.status || "").toLowerCase())) &&
+        files.some(f => f.downloadUrl))
+      return "completed";
+  }
   return raw;
 }
 
@@ -343,9 +349,16 @@ function renderJobs() {
     const raw = resolvedStatus(job);
     const failed = raw === "failed" || raw === "completedwitherrors" || raw === "completed_with_errors";
     title.textContent = STATUS_LABELS[raw] || raw;
+    if (raw === "running") {
+      const spinner = document.createElement("span");
+      spinner.className = "spinner"; spinner.setAttribute("aria-hidden", "true");
+      title.appendChild(spinner);
+    }
     if (failed) title.classList.add("fail");
     const bar = document.createElement("div"); bar.className = "bar";
-    const fill = document.createElement("span"); fill.style.width = `${Math.round((job.progress || 0) * 100)}%`;
+    const terminal = ["completed", "completedwitherrors", "completed_with_errors", "failed", "cancelled", "interrupted"];
+    const pct = terminal.includes(raw) ? 100 : Math.round((job.progress || 0) * 100);
+    const fill = document.createElement("span"); fill.style.width = `${pct}%`;
     bar.appendChild(fill); row.append(title, bar);
 
     const links = document.createElement("div"); links.className = "job-links";

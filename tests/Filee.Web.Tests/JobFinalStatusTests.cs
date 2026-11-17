@@ -44,6 +44,23 @@ public sealed class JobFinalStatusTests
     }
 
     [Fact]
+    public void Resolve_CompletesBatchEvenWhenAverageProgressBelowOne()
+    {
+        // Real batch: 5 files converted, engine reports some file progress at 0.6, so the job
+        // average is 0.92 — but every file reached a terminal state. Must still resolve completed.
+        var job = NewJob("a.txt", "b.txt", "c.txt", "d.txt", "e.txt");
+        typeof(ConversionJob).GetProperty("State")!.SetValue(job, JobState.Running);
+        for (var i = 0; i < job.Files.Count; i++)
+        {
+            job.Files[i].State = FileState.Done;
+            job.Files[i].Progress = i == 0 ? 0.6 : 1.0; // average 0.92
+        }
+
+        Assert.True(job.Progress < 0.9999);
+        Assert.Equal("completed", JobFinalStatus.Resolve(job));
+    }
+
+    [Fact]
     public void Resolve_FallsBackToCompletedWithErrorsWhenSomeFailed()
     {
         var job = NewJob("a.txt", "b.txt");

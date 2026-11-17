@@ -130,17 +130,19 @@ p { margin: 6px 0; color: var(--text-secondary); font-size: 13px; }
 .donut-wrap .target-grid {
   display: grid;
   /* responsive unknown item count: auto-fit stretches the last row */
-  grid-template-columns: repeat(auto-fill, minmax(clamp(64px, 16cqi, 88px), 96px));
+  grid-template-columns: repeat(auto-fill, minmax(clamp(104px, 24cqi, 128px), 132px));
   gap: clamp(10px, 2.5cqi, 20px);
   width: 100%; padding: 6px 0;
   justify-content: start;
 }
 .target-chip {
-  /* fluid type within 0.75–1.125rem; font-relative bounds keep zoom working */
-  font-size: clamp(0.75rem, 0.65rem + 1.5cqi, 1.125rem);
-  font-weight: 600; letter-spacing: .02em;
-  min-height: clamp(34px, 9cqi, 46px);
-  padding: 7px 12px; border-radius: 10px;
+  /* fluid type, capped below the chip width so long ids (MEDIAWIKI) never overflow */
+  font-size: clamp(0.72rem, 0.64rem + 1cqi, 0.95rem);
+  font-weight: 600; letter-spacing: .01em;
+  min-height: clamp(36px, 9cqi, 48px);
+  padding: 8px 14px; border-radius: 10px;
+  /* margin inside the chip + ellipsis as a last resort for very long ids */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   border: 1.5px solid var(--border-strong);
   background: var(--surface-1); color: var(--text-secondary);
   cursor: pointer; transition: background .16s, border-color .16s, color .16s, transform .16s;
@@ -160,6 +162,7 @@ p { margin: 6px 0; color: var(--text-secondary); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) {
   .target-chip, .dropzone { transition: none; }
   .target-chip:hover { transform: none; }
+  .spinner { animation-duration: 2s; } /* 仍提示进行中，但降低转速 */
 }
 
 /* 提交 */
@@ -175,8 +178,14 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 /* 任务 */
 .job { border-top: 1px solid var(--border); padding: 10px 0; }
 .job:first-child { border-top: 0; }
-.job-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.job-title { font-size: 13px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
 .job-title.fail { color: var(--text-warn); }
+.spinner {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid var(--border-strong); border-top-color: var(--text-accent);
+  display: inline-block; animation: filee-spin .7s linear infinite;
+}
+@keyframes filee-spin { to { transform: rotate(360deg); } }
 .bar { height: 6px; background: var(--surface-1); border-radius: 999px; overflow: hidden; margin: 8px 0; }
 .bar > span { display: block; height: 100%; background: var(--text-accent); transition: width .2s; }
 .job a {

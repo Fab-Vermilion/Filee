@@ -17,8 +17,10 @@ public static class JobFinalStatus
         if (IsTerminal(mapped))
             return mapped;
 
+        // File progress is engine-reported and can settle below 1.0 for a successful batch (the job
+        // average is what /api/jobs exposes). Use per-file terminal state, not the numeric average.
         var files = job.Files;
-        if (files.Count == 0 || job.Progress < 0.9999 || files.Any(f => !IsFileTerminal(f.State)))
+        if (files.Count == 0 || files.Any(f => !IsFileTerminal(f.State)))
             return mapped;
 
         if (files.All(f => f.State is FileState.Done or FileState.Skipped))

@@ -130,6 +130,8 @@ public sealed class S9FrontendTests
         Assert.Contains("container-type: inline-size", css); // 按容器自适应
         Assert.Contains("repeat(auto-fill", css);            // 方块不拉伸铺满
         Assert.Contains("clamp(10px, 2.5cqi, 20px)", css);   // 加大间距
+        Assert.Contains("text-overflow: ellipsis", css);     // 长名字不溢出方块
+        Assert.Contains("0.95rem", css);                     // 字号上限随方块缩小
         Assert.Contains("aria-pressed", js);                 // 选中态可访问
         Assert.Contains(":focus-visible", css);
     }
@@ -200,7 +202,9 @@ public sealed class S9FrontendTests
         Assert.Contains("已完成", js);
         Assert.Contains("排队中", js);
         Assert.Contains("completed_with_errors", js);
-        Assert.Contains("function resolvedStatus", js); // 进度满兜底
+        Assert.Contains("function resolvedStatus", js);
+        Assert.Contains("FILE_TERMINAL", js);         // 按文件级终态兜底，不看 progress
+        Assert.Contains("spinner", js);               // 进行中转圈
         Assert.DoesNotContain("jobId.slice", js);    // 任务行不再显示内部 ID
     }
 
@@ -211,8 +215,7 @@ public sealed class S9FrontendTests
 
         Assert.Contains("filter(f => f.downloadUrl).length > 1", js); // 只在多个下载文件时出现
         Assert.Contains("全部下载", js);
-        Assert.Contains("links.appendChild", js);        // 放在下载链接最后
-        Assert.DoesNotContain("title.appendChild", js);
+        Assert.Contains("links.appendChild(Object.assign", js); // zip 按钮 append 到链接容器
         Assert.Contains("archive-link", js);
     }
 }

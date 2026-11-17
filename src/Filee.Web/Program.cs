@@ -100,7 +100,7 @@ queue.JobFinished += (_, job) =>
     // Safety net: if the engine still reports Running although every file is done, persist a terminal
     // status so the UI never sticks on "进行中" with downloadable outputs already present.
     var status = JobFinalStatus.Resolve(job);
-    if (status == "running" && outputs.Any(p => !string.IsNullOrEmpty(p)) && job.Progress >= 0.9999)
+    if (status == "running" && outputs.Any(p => !string.IsNullOrEmpty(p)))
         status = "completed";
     progress.Publish(webId, status, job.Progress, force: true);
     jobStore.UpdateSummary(webId, status, job.Progress, IsTerminalStatus(status) ? DateTimeOffset.UtcNow : null);

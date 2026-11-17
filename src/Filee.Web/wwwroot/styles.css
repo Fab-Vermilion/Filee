@@ -81,12 +81,13 @@ p { margin: 6px 0; color: var(--text-secondary); font-size: 13px; }
 /* 上传 */
 .dropzone {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 6px; min-height: 150px; padding: 18px;
+  gap: 4px; min-height: 96px; padding: 14px;
   border: 1.5px dashed var(--border-strong); border-radius: var(--radius);
   background: var(--surface-1); cursor: pointer; text-align: center;
+  transition: border-color .18s, background .18s;
 }
-.dropzone.dragover { border-color: var(--border-accent); background: var(--bg-accent); }
-.drop-icon { font-size: 30px; color: var(--text-accent); line-height: 1; }
+.dropzone:hover { border-color: var(--border-accent); background: var(--bg-accent); }
+.drop-icon { font-size: 26px; color: var(--text-accent); line-height: 1; }
 .drop-text { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .drop-hint { font-size: 12px; color: var(--text-muted); }
 .dropzone input { display: none; }
@@ -120,35 +121,45 @@ p { margin: 6px 0; color: var(--text-secondary); font-size: 13px; }
 }
 .chip.on { background: var(--bg-accent); color: var(--text-accent); border-color: var(--border-accent); }
 
-/* 甜甜圈 */
-.donut-wrap { display: flex; align-items: center; justify-content: center; min-height: 260px; }
-.donut-wrap svg { width: min(100%, 300px); height: auto; overflow: visible; }
-.donut-wrap .seg path {
-  fill: var(--surface-1); stroke: var(--surface-2); stroke-width: 2.5;
-  transition: fill .18s, transform .18s; cursor: pointer;
+/* 目标格式网格（按容器自适应，无甜甜圈） */
+.donut-wrap {
+  /* establish containment so the grid can size to this panel, not the viewport */
+  container-type: inline-size; container-name: targets;
+  display: block; width: 100%; min-height: 96px;
 }
-.donut-wrap .seg:hover path, .donut-wrap .seg.hot path { fill: var(--bg-accent); }
-.donut-wrap .seg.on path { fill: var(--bg-success); stroke: var(--text-success); }
-.donut-wrap .seg text {
-  fill: var(--text-primary); font-size: 12px; font-weight: 600;
-  pointer-events: none; user-select: none;
-}
-.donut-wrap .center-title { fill: var(--text-primary); font-size: 15px; font-weight: 700; }
-.donut-wrap .center-sub { fill: var(--text-secondary); font-size: 11px; }
-.target-line { text-align: center; margin-top: 6px; }
-.target-line strong { color: var(--text-accent); }
-
-/* 目标过多时的按钮网格（甜甜圈扇区拥挤兜底） */
 .donut-wrap .target-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-  gap: 8px; width: 100%; align-content: center; padding: 8px;
+  display: grid;
+  /* responsive unknown item count: auto-fit stretches the last row */
+  grid-template-columns: repeat(auto-fit, minmax(clamp(76px, 22cqi, 120px), 1fr));
+  gap: clamp(6px, 1.5cqi, 12px);
+  width: 100%; padding: 4px 0;
 }
 .target-chip {
-  padding: 9px 6px; font-size: 12px; border-radius: 8px;
-  border: 1px solid var(--border-strong); background: var(--surface-1);
-  color: var(--text-primary); cursor: pointer;
+  /* fluid type within 0.75–1.25rem; font-relative bounds keep zoom working */
+  font-size: clamp(0.75rem, 0.6rem + 2cqi, 1.25rem);
+  font-weight: 600; letter-spacing: .02em;
+  min-height: clamp(38px, 12cqi, 56px);
+  padding: 8px 6px; border-radius: 10px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface-1); color: var(--text-secondary);
+  cursor: pointer; transition: background .16s, border-color .16s, color .16s, transform .16s;
 }
-.target-chip.on { background: var(--bg-success); border-color: var(--text-success); color: var(--text-success); }
+.target-chip:hover {
+  background: var(--bg-accent); border-color: var(--border-accent);
+  color: var(--text-accent); transform: translateY(-1px);
+}
+.target-chip:focus-visible { outline: 2px solid var(--border-accent); outline-offset: 2px; }
+.target-chip[aria-pressed="true"], .target-chip.on {
+  background: var(--bg-success); border-color: var(--text-success);
+  color: var(--text-success); box-shadow: inset 0 0 0 1px var(--text-success);
+}
+.target-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 0; }
+.target-line { text-align: center; margin-top: 10px; }
+.target-line strong { color: var(--text-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .target-chip, .dropzone { transition: none; }
+  .target-chip:hover { transform: none; }
+}
 
 /* 提交 */
 .submit-row { display: flex; gap: 10px; margin: 4px 0 14px; }
@@ -163,8 +174,8 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 /* 任务 */
 .job { border-top: 1px solid var(--border); padding: 10px 0; }
 .job:first-child { border-top: 0; }
-.job-title { font-size: 13px; color: var(--text-primary); }
-.job-title .fail { color: var(--text-warn); }
+.job-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.job-title.fail { color: var(--text-warn); }
 .bar { height: 6px; background: var(--surface-1); border-radius: 999px; overflow: hidden; margin: 8px 0; }
 .bar > span { display: block; height: 100%; background: var(--text-accent); transition: width .2s; }
 .job a {
@@ -172,7 +183,13 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   color: var(--text-success); text-decoration: none;
   border: 1px solid var(--border-strong); border-radius: 999px; padding: 4px 12px;
 }
+.job-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .job a:hover { background: var(--bg-success); }
+.job a.archive-link {
+  color: var(--text-accent); border-color: var(--border-accent);
+  background: var(--bg-accent); font-weight: 600;
+}
+.job a.archive-link:hover { filter: brightness(1.05); }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

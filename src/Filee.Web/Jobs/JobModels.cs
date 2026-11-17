@@ -28,7 +28,8 @@ public sealed record JobSnapshot(
     string Status,
     double Progress,
     DateTimeOffset CreatedAt,
-    IReadOnlyList<JobFileSnapshot> Files)
+    IReadOnlyList<JobFileSnapshot> Files,
+    string? ArchiveUrl = null)
 {
     public static JobSnapshot From(JobRecord record) =>
         new(record.WebId, record.Status, record.Progress, record.CreatedAt, []);

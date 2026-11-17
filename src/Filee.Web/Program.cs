@@ -205,7 +205,11 @@ app.MapGet("/api/jobs/{id}", (string id, HttpContext context, SessionService ses
                 downloadUrl);
         }).ToArray();
 
-    return Results.Ok(JobSnapshot.From(record) with { Files = files });
+    // A job-level token (no pinned path) authorises the all-files zip archive.
+    var archiveUrl = files.Any(f => f.DownloadUrl is not null)
+        ? $"/api/download/all?token={tokens.Issue(identity.Tid, identity.Sub, id)}"
+        : null;
+    return Results.Ok(JobSnapshot.From(record) with { Files = files, ArchiveUrl = archiveUrl });
 });
 
 app.MapGet("/api/jobs/{id}/events", async Task<IResult> (string id, HttpContext context, SessionService sessions,
@@ -265,6 +269,24 @@ app.MapGet("/api/download", (string? token, HttpContext context, SessionService 
         return ApiProblem.Expired();
 
     return Results.File(path, "application/octet-stream", Path.GetFileName(path));
+});
+
+app.MapGet("/api/download/all", (string? token, HttpContext context, SessionService sessions,
+    DownloadTokenService tokens, WebJobRegistry jobs) =>
+{
+    if (!sessions.TryRead(context, out var identity))
+        return ApiProblem.Unauthenticated();
+    if (string.IsNullOrEmpty(token))
+        return ApiProblem.InvalidToken();
+    // Job-level token (issued without a pinned path) authorises bundling this job's outputs.
+    if (!tokens.TryResolve(token, identity.Tid, identity.Sub, out var jobId))
+        return ApiProblem.Forbidden();
+    var paths = jobs.GetOutputs(jobId).Where(File.Exists).ToArray();
+    if (paths.Length == 0)
+        return ApiProblem.Expired();
+
+    var archive = ArchiveBundle.Build(paths);
+    return Results.File(archive, "application/zip", $"filee-{jobId[..Math.Min(8, jobId.Length)]}.zip");
 });
 
 app.UseDefaultFiles();

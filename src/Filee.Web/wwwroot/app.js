@@ -2,6 +2,7 @@ const state = {
   csrfToken: "",
   target: "",
   jobs: new Map(),
+  sources: new Map(),      // jobId -> EventSource，清空任务列表时一并关闭
   reloading: false,
   formats: [],          // 全部 FormatDescriptor
   byId: new Map(),      // id -> descriptor
@@ -34,7 +35,6 @@ const CATEGORY_LABELS = {
   Vector: "矢量", Cad: "CAD", Font: "字体", Ebook: "电子书",
   Model3D: "3D 模型", Geo: "地理数据",
 };
-const DONUT_MAX = 8;   // 超过则用按钮网格，避免扇区文字重叠
 const MAX_FILES = 20;  // 单批最多文件数（方案约定）
 const CATEGORY_ORDER = ["Image", "Pdf", "Document", "Spreadsheet", "Presentation",
   "Hwp", "Text", "Subtitle", "Video", "Audio", "Archive", "Data",
@@ -224,72 +224,38 @@ function selectCategory(category) {
   if (targets.length) selectTarget(targets[0]);
 }
 
-// 甜甜圈：极坐标扇区（移植官方设计稿），只画当前分类下、且在交集中的目标
+// 目标格式网格：按容器自适应的按钮网格，无甜甜圈
 function renderDonut(targets) {
-  // 目标过多时甜甜圈扇区文字会重叠，改用清晰的按钮网格
-  if (targets.length > DONUT_MAX) {
-    const grid = document.createElement("div");
-    grid.className = "target-grid";
-    for (const id of targets) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "target-chip" + (id === state.target ? " on" : "");
-      btn.dataset.target = id;
-      btn.textContent = id.toUpperCase();
-      btn.addEventListener("click", () => selectTarget(id));
-      grid.appendChild(btn);
-    }
-    elements.donut.innerHTML = "";
-    elements.donut.appendChild(grid);
+  const host = elements.donut;
+  host.innerHTML = "";
+  if (!targets.length) {
+    const empty = document.createElement("div");
+    empty.className = "target-empty";
+    empty.textContent = "该分类暂无可转换的目标格式";
+    host.appendChild(empty);
     return;
   }
-  const NS = "http://www.w3.org/2000/svg";
-  const C = 120, R2 = 108, R1 = 46;
-  const svg = document.createElementNS(NS, "svg");
-  svg.setAttribute("viewBox", "0 0 240 240");
-  svg.setAttribute("aria-hidden", "true");
-  const el = (tag, attrs) => {
-    const node = document.createElementNS(NS, tag);
-    for (const k in attrs) node.setAttribute(k, attrs[k]);
-    return node;
-  };
-  const pt = (r, a) => [C + r * Math.cos(a), C + r * Math.sin(a)];
-  const seg = (i, n) => {
-    if (n === 1) return `M${C - R2} ${C}A${R2} ${R2} 0 1 0 ${C + R2} ${C}A${R2} ${R2} 0 1 0 ${C - R2} ${C}M${C - R1} ${C}A${R1} ${R1} 0 1 1 ${C + R1} ${C}A${R1} ${R1} 0 1 1 ${C - R1} ${C}Z`;
-    const sp = 2 * Math.PI / n, s = -Math.PI / 2 + i * sp - sp / 2, e = s + sp;
-    const [a, b] = pt(R2, s), [c, d] = pt(R2, e), [f, g] = pt(R1, e), [h, k] = pt(R1, s);
-    return `M${a} ${b}A${R2} ${R2} 0 0 1 ${c} ${d}L${f} ${g}A${R1} ${R1} 0 0 0 ${h} ${k}Z`;
-  };
-
-  if (!targets.length) {
-    svg.appendChild(el("circle", { cx: C, cy: C, r: (R1 + R2) / 2, fill: "none", stroke: "var(--surface-1)", "stroke-width": R2 - R1 }));
-  } else {
-    targets.forEach((id, i) => {
-      const group = el("g", { class: "seg", "data-target": id });
-      group.appendChild(el("path", { d: seg(i, targets.length) }));
-      const angle = -Math.PI / 2 + i * 2 * Math.PI / targets.length;
-      const [x, y] = targets.length === 1 ? [C, C - (R1 + R2) / 2] : pt((R1 + R2) / 2, angle);
-      const text = el("text", { x, y, "text-anchor": "middle", "dominant-baseline": "central" });
-      text.textContent = id.toUpperCase();
-      group.appendChild(text);
-      group.addEventListener("click", () => selectTarget(id));
-      svg.appendChild(group);
-    });
+  const grid = document.createElement("div");
+  grid.className = "target-grid";
+  grid.setAttribute("role", "group");
+  grid.setAttribute("aria-label", "目标格式列表");
+  for (const id of targets) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "target-chip";
+    btn.dataset.target = id;
+    btn.textContent = id.toUpperCase();
+    btn.setAttribute("aria-pressed", String(id === state.target));
+    btn.addEventListener("click", () => selectTarget(id));
+    grid.appendChild(btn);
   }
-  const title = el("text", { x: C, y: C - 4, "text-anchor": "middle", class: "center-title" });
-  title.textContent = labelOf(state.category) || "目标";
-  const sub = el("text", { x: C, y: C + 14, "text-anchor": "middle", class: "center-sub" });
-  sub.textContent = targets.length ? `${targets.length} 种可转` : "无可用";
-  svg.append(title, sub);
-
-  elements.donut.innerHTML = "";
-  elements.donut.appendChild(svg);
+  host.appendChild(grid);
   syncSeg();
 }
 
 function syncSeg() {
-  for (const segNode of elements.donut.querySelectorAll(".seg, .target-chip"))
-    segNode.classList.toggle("on", segNode.dataset.target === state.target);
+  for (const btn of elements.donut.querySelectorAll(".target-chip"))
+    btn.setAttribute("aria-pressed", String(btn.dataset.target === state.target));
 }
 
 function selectTarget(id) {
@@ -311,6 +277,10 @@ async function submitJob() {
   });
   if (!response.ok) { setMessage("提交失败，请刷新页面重试。"); if (response.status === 401) await requestRelogin(); return; }
   const payload = await response.json();
+  // 新任务开始：关闭旧任务的进度流并清空列表，避免新文件附加到旧任务后面
+  for (const source of state.sources.values()) source.close();
+  state.sources.clear();
+  state.jobs.clear();
   setMessage("任务已创建。");
   trackJob(payload.jobId);
 }
@@ -319,8 +289,12 @@ function trackJob(jobId) {
   state.jobs.set(jobId, { status: "queued", progress: 0 });
   renderJobs();
   const source = new EventSource(`/api/jobs/${jobId}/events`);
+  state.sources.set(jobId, source);
   source.addEventListener("progress", (e) => applyProgress(jobId, e));
-  source.addEventListener("done", async (e) => { applyProgress(jobId, e); source.close(); await refreshJob(jobId); });
+  source.addEventListener("done", async (e) => {
+    applyProgress(jobId, e); source.close(); state.sources.delete(jobId);
+    await refreshJob(jobId);
+  });
 }
 function applyProgress(jobId, event) {
   const p = JSON.parse(event.data);
@@ -335,29 +309,45 @@ async function refreshJob(jobId) {
   state.jobs.set(jobId, { ...(state.jobs.get(jobId) || {}), ...job });
   renderJobs();
 }
+const STATUS_LABELS = {
+  queued: "排队中", running: "进行中", completed: "已完成",
+  completedwitherrors: "已完成（部分失败）", failed: "失败",
+  cancelled: "已取消", interrupted: "已中断",
+};
+function statusLabel(status) {
+  return STATUS_LABELS[(status || "queued").toLowerCase()] || status;
+}
+
 function renderJobs() {
   elements.jobs.innerHTML = "";
-  for (const [jobId, job] of state.jobs) {
+  for (const job of state.jobs.values()) {
     const row = document.createElement("div"); row.className = "job";
     const title = document.createElement("div"); title.className = "job-title";
-    const failed = (job.status || "").toLowerCase() === "failed";
-    title.innerHTML = `${jobId.slice(0, 8)} · ${failed ? '<span class="fail">失败</span>' : (job.status || "queued")}`;
+    const raw = (job.status || "queued").toLowerCase();
+    const failed = raw === "failed" || raw === "completedwitherrors";
+    title.textContent = statusLabel(raw);
+    if (failed) title.classList.add("fail");
     const bar = document.createElement("div"); bar.className = "bar";
     const fill = document.createElement("span"); fill.style.width = `${Math.round((job.progress || 0) * 100)}%`;
     bar.appendChild(fill); row.append(title, bar);
+
+    const links = document.createElement("div"); links.className = "job-links";
     for (const file of job.files || []) {
       if (!file.downloadUrl) continue;
       const link = document.createElement("a"); link.href = file.downloadUrl; link.textContent = `下载 ${file.name}`;
-      row.appendChild(link);
+      links.appendChild(link);
     }
+    // 全部下载：服务端把该任务所有输出打包成 zip，一次点击一次下载（避开多文件下载被拦截）
+    if ((job.files || []).some(f => f.downloadUrl) && job.archiveUrl)
+      links.appendChild(Object.assign(document.createElement("a"), {
+        href: job.archiveUrl, className: "archive-link", textContent: "全部下载 (zip)",
+      }));
+    row.appendChild(links);
     elements.jobs.appendChild(row);
   }
 }
 
-// 事件
-for (const t of ["dragenter", "dragover"]) elements.dropzone.addEventListener(t, (e) => { e.preventDefault(); elements.dropzone.classList.add("dragover"); });
-for (const t of ["dragleave", "drop"]) elements.dropzone.addEventListener(t, (e) => { e.preventDefault(); elements.dropzone.classList.remove("dragover"); });
-elements.dropzone.addEventListener("drop", (e) => { onFilesChanged(e.dataTransfer.files); });
+// 事件（拖放无效：label 包裹的 file input 会把 drop 转成点击，故只保留点击选择）
 elements.files.addEventListener("change", () => onFilesChanged(elements.files.files));
 elements.addMore.addEventListener("click", () => elements.files.click());
 elements.target.addEventListener("change", () => selectTarget(elements.target.value));

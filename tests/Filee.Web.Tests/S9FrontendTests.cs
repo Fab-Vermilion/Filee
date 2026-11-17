@@ -118,14 +118,19 @@ public sealed class S9FrontendTests
     }
 
     [Fact]
-    public void Frontend_FallsBackToGridWhenTooManyTargetsForDonut()
+    public void Frontend_UsesOnlyGridForTargets_NoDonutSvg()
     {
         var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
         var css = File.ReadAllText(Path.Combine(WwwRoot, "styles.css"));
 
-        Assert.Matches(@"DONUT_MAX|MAX_DONUT|donutMax", js); // 有数量阈值
-        Assert.Contains("target-grid", js);   // 超限改用网格
+        Assert.Contains("target-grid", js);
         Assert.Contains("target-grid", css);
+        Assert.DoesNotContain("createElementNS", js);      // 不再画 SVG 甜甜圈
+        Assert.DoesNotContain("class=\"seg\"", js);
+        Assert.Contains("container-type: inline-size", css); // 按容器自适应
+        Assert.Contains("clamp(", css);                      // 流式字号
+        Assert.Contains("aria-pressed", js);                 // 选中态可访问
+        Assert.Contains(":focus-visible", css);
     }
 
     [Fact]
@@ -151,5 +156,56 @@ public sealed class S9FrontendTests
         Assert.Contains("可转换类型", manual);
         Assert.Contains("第三方协议", manual);
         Assert.Contains("返回", manual);
+    }
+
+    // ---- 用户实测 2026-11-17 16:43 五项改动 ----
+
+    [Fact]
+    public void Frontend_DropzoneSaysClickOnly_AndMentionsBatchLimit()
+    {
+        var html = File.ReadAllText(Path.Combine(WwwRoot, "index.html"));
+
+        Assert.Contains("点击选择文件", html);
+        Assert.DoesNotContain("拖入文件", html);
+        Assert.Contains("最多 20 个文件", html);
+    }
+
+    [Fact]
+    public void Frontend_HasNoDropListeners()
+    {
+        var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
+
+        Assert.DoesNotContain("dataTransfer", js);   // 拖放无效，移除以免触发打开文件对话框
+        Assert.DoesNotContain("dragover", js);
+    }
+
+    [Fact]
+    public void Frontend_ClearsJobListBeforeNewJob()
+    {
+        var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
+
+        Assert.Contains("state.jobs.clear()", js);
+        Assert.Contains("state.sources", js);
+    }
+
+    [Fact]
+    public void Frontend_UsesChineseStatusLabels_NoRawJobId()
+    {
+        var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
+
+        Assert.Contains("进行中", js);
+        Assert.Contains("已完成", js);
+        Assert.Contains("排队中", js);
+        Assert.DoesNotContain("jobId.slice", js);    // 任务行不再显示内部 ID
+    }
+
+    [Fact]
+    public void Frontend_HasDownloadAllArchiveButton()
+    {
+        var js = File.ReadAllText(Path.Combine(WwwRoot, "app.js"));
+
+        Assert.Contains("archiveUrl", js);
+        Assert.Contains("全部下载", js);
+        Assert.Contains("archive-link", js);
     }
 }

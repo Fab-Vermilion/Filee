@@ -39,4 +39,10 @@ public sealed class WebJobRegistry
 
     public bool HasOutputs(string webId) =>
         _outputs.TryGetValue(webId, out var outputs) && outputs.Any(p => !string.IsNullOrEmpty(p));
+
+    /// <summary>All distinct, existing-free output paths for the job, for the archive download.</summary>
+    public string[] GetOutputs(string webId) =>
+        _outputs.TryGetValue(webId, out var outputs)
+            ? outputs.Where(p => !string.IsNullOrEmpty(p)).Distinct(StringComparer.Ordinal).ToArray()
+            : [];
 }

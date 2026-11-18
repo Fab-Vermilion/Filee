@@ -6,6 +6,8 @@
 
 fork 自 Filee，沿用上游 **MIT** 许可证。
 
+[English](README.en.md)
+
 ---
 
 ## 与原仓库的区别
@@ -19,7 +21,7 @@ fork 自 Filee，沿用上游 **MIT** 许可证。
 | 界面 | Avalonia 原生甜甜圈 | HTML 网格选格式、批量文件列表、任务进度页签、全部下载 zip |
 | 配置 | 应用设置 | 单一 `appsettings.local.json`，一键 `start.sh`，环境变量可覆盖 |
 | 部署 | 安装包 | 常驻本地服务（`https://<host>:<port>`），部署不带数据库，首次运行自动建空库 |
-| 引擎 | 桌面端随安装/下载 | 便携化放在 `engines/`，运行时按平台探测；macOS 已内置 ffmpeg/ghostscript 便携版 |
+| 引擎 | 桌面端随安装/下载 | 运行时从 `engines/` 或系统 PATH 探测；引擎二进制不包含在本仓库中，需自行准备 |
 | 能力边界 | 完整引擎能力 | Web 白名单收窄：禁用 OCR、语音转录、AI 超分、机器翻译；隐藏当前引擎不支持的少量格式 |
 
 转换核心仍来自上游：格式注册表、转换引擎（FFmpeg、LibreOffice、Ghostscript、calibre、pandoc、7-Zip、ExifTool、rhwp）、文件魔数校验与并发控制。Web 层新增的代码集中在 `src/Filee.Web/`。
@@ -67,11 +69,13 @@ cp appsettings.local.json.example appsettings.local.json
 
 ---
 
-## 引擎
+## 引擎（需自行准备）
 
-`engines/` 目录放置便携版转换引擎，运行时优先使用这里的副本，其次才是系统 PATH。macOS 上已内置 FFmpeg 9.0.2（全编码器）与 Ghostscript 10.08.0，以及 LibreOffice、calibre、pandoc、7-Zip、ExifTool、rhwp。
+**本仓库不包含任何第三方转换引擎二进制。** 上游 Filee 提供按平台获取引擎的机制，本项目沿用；部署时需按目标平台自行准备以下引擎，放到 `engines/` 目录或安装在系统 PATH 上：
 
-部署到 Linux 时，这些 macOS 二进制需要换成 Linux 版本：FFmpeg、calibre、pandoc、ExifTool、7-Zip、rhwp 由项目按平台自动下载；LibreOffice 与 Ghostscript 在 Linux 需系统安装。
+- FFmpeg、LibreOffice、Ghostscript、calibre、pandoc、7-Zip、ExifTool、rhwp
+
+程序运行时优先探测 `engines/<id>/` 下的便携副本，其次查找系统 PATH。具体版本、目录布局与平台差异请参考上游 Filee 的引擎文档；未安装的引擎对应的转换目标将不可用。
 
 ---
 

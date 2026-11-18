@@ -43,18 +43,31 @@ fork 自 Filee，沿用上游 **MIT** 许可证。
 
 ## 部署
 
-环境：Linux 或 macOS，安装 .NET SDK 10。
+**前置条件**：Linux 或 macOS，并提前安装：
+- **.NET SDK 10**（不是 Runtime）——仓库里没有任何预编译产物，`start.sh` 内部用 `dotnet run -c Release` 启动，它在首次运行和每次源码变更后都会**自动执行构建**
+- **Python 3**——`start.sh` 用它读取 JSON 配置并导出环境变量
+- 目标平台对应的第三方转换引擎（见下方"引擎"一节）
 
 ```bash
+# 1. 拉取源码
 git clone https://github.com/Fab-Vermilion/Filee.git
 cd Filee
 git checkout wbapp
+
+# 2. 准备配置
 cp appsettings.local.json.example appsettings.local.json
 # 编辑 appsettings.local.json：填监听地址、免登回调地址、Client ID/Secret、证书等
+
+# 3. 首次构建（可选但推荐：提前暴露编译错误，也便于确认 SDK 版本）
+dotnet build src/Filee.Web/Filee.Web.csproj -c Release
+
+# 4. 启动（start.sh 会再次确保已构建，然后常驻运行）
 ./start.sh
 ```
 
-`start.sh` 会读取配置并启动服务。首次运行自动创建空数据库（也可先跑 `./init-db.sh` 显式建库）。数据库只存任务记录，不含任何密钥或 SSO 配置。
+第 3 步可省略——`./start.sh` 里的 `dotnet run` 会自动构建；但先单独 build 一次能更早发现问题。仓库不含 `bin/`、`dist/` 等任何构建产物，克隆后必须构建。
+
+首次运行自动创建空数据库（也可先跑 `./init-db.sh` 显式建库）。数据库只存任务记录，不含任何密钥或 SSO 配置。
 
 ### 配置要点
 

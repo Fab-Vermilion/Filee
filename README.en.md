@@ -43,18 +43,31 @@ OCR (optical character recognition), speech transcription, AI upscaling and mach
 
 ## Deployment
 
-Requirements: Linux or macOS with the .NET 10 SDK installed.
+**Prerequisites** — Linux or macOS with the following installed:
+- **.NET SDK 10** (not just the Runtime) — the repository contains no prebuilt binaries. `start.sh` launches with `dotnet run -c Release`, which **builds automatically** on first run and after any source change.
+- **Python 3** — `start.sh` uses it to read the JSON config and export environment variables.
+- The third-party conversion engines for your platform (see "Engines" below).
 
 ```bash
+# 1. Get the source
 git clone https://github.com/Fab-Vermilion/Filee.git
 cd Filee
 git checkout wbapp
+
+# 2. Prepare configuration
 cp appsettings.local.json.example appsettings.local.json
 # Edit appsettings.local.json: listen address, SSO callback, Client ID/Secret, certificate
+
+# 3. Build once (optional but recommended: surfaces errors early, confirms SDK version)
+dotnet build src/Filee.Web/Filee.Web.csproj -c Release
+
+# 4. Start (start.sh ensures a build, then runs the service in the foreground)
 ./start.sh
 ```
 
-`start.sh` reads the config and starts the service. An empty database is created automatically on first run (or run `./init-db.sh` explicitly). The database stores only job records — no keys or SSO configuration.
+Step 3 can be skipped because `dotnet run` in `start.sh` builds automatically; doing a separate build first just catches problems earlier. There are no `bin/`, `dist/` or other build artifacts in the repository — a build is required after cloning.
+
+An empty database is created automatically on first run (or run `./init-db.sh` explicitly). The database stores only job records — no keys or SSO configuration.
 
 ### Configuration essentials
 

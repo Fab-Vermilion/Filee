@@ -16,7 +16,7 @@
   <a href="#development">Development</a>
 </p>
 
-> **WorkBuddy 自建 Web 应用版本（本分支 `workbuddy-webapp`）**：在保留 Filee 转换引擎的基础上，新增了可通过 WorkBuddy 自建菜单免登访问的 Web 应用（上传 → 选格式 → 转换 → 下载）。源码见 <https://github.com/KnifeLemon/Filee/tree/workbuddy-webapp>。
+> **WorkBuddy 自建 Web 应用版本（本分支 `wbapp`）**：在保留 Filee 转换引擎的基础上，新增了可通过 WorkBuddy 自建菜单免登访问的 Web 应用（上传 → 选格式 → 转换 → 下载）。源码见 <https://github.com/Fab-Vermilion/Filee/tree/wbapp>。
 >
 > - 部署与配置：[DEPLOY.md](DEPLOY.md)（单一 JSON 配置、一键启动、空库自动构建）
 > - 使用手册：应用内右上角「使用手册」，或 [manual.html](src/Filee.Web/wwwroot/manual.html)

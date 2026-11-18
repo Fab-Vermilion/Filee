@@ -1,280 +1,80 @@
-<p align="center">
-  <a href="https://filee.sh"><img src="docs/media/banner-en.jpg" alt="Filee: Drag. Drop. Converted." width="100%"></a>
-</p>
+# Filee · WorkBuddy 自建 Web 应用版
 
-<p align="center">
-  <b>A free, open-source file converter you use by dragging.</b><br>
-  Hold a key (<kbd>Ctrl</kbd>, <kbd>Option</kbd> on macOS), drag files and drop them on a format in the donut that opens at your cursor.
-</p>
+![应用界面](assets/readme.png)
 
-<p align="center">
-  <a href="https://filee.sh"><b>Website</b></a> ·
-  <a href="https://github.com/KnifeLemon/Filee/releases/latest"><b>Download</b></a> ·
-  <a href="https://www.linkedin.com/company/filee-sh/"><b>LinkedIn</b></a> ·
-  <a href="#install">Install</a> ·
-  <a href="#command-line">Command line</a> ·
-  <a href="#development">Development</a>
-</p>
+这是一个把 Filee 文件转换引擎包装成 **WorkBuddy 自建应用**的版本：通过 WorkBuddy 菜单免登进入一个网页，上传文件、选择目标格式、转换、下载。全程在服务器上完成，用户端零安装。
 
-> **WorkBuddy 自建 Web 应用版本（本分支 `wbapp`）**：在保留 Filee 转换引擎的基础上，新增了可通过 WorkBuddy 自建菜单免登访问的 Web 应用（上传 → 选格式 → 转换 → 下载）。源码见 <https://github.com/Fab-Vermilion/Filee/tree/wbapp>。
->
-> - 部署与配置：[DEPLOY.md](DEPLOY.md)（单一 JSON 配置、一键启动、空库自动构建）
-> - 使用手册：应用内右上角「使用手册」，或 [manual.html](src/Filee.Web/wwwroot/manual.html)
-> - 便携引擎说明：[PORTABLE-ENGINES.md](docs/PORTABLE-ENGINES.md)
-> - 转换能力矩阵与复核：[docs/matrix/REPORT.md](docs/matrix/REPORT.md)（最终复核结论见 [TRUE-FAILURES.md](docs/matrix/TRUE-FAILURES.md)）
->
-> 本版本不改变上游 Filee 桌面端；`main`/上游仍为原项目。协议沿用上游 MIT。
+fork 自 Filee，沿用上游 **MIT** 许可证。
 
-<p align="center">
-  <a href="https://github.com/KnifeLemon/Filee/actions/workflows/ci.yml"><img src="https://github.com/KnifeLemon/Filee/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/KnifeLemon/Filee/releases/latest"><img src="https://img.shields.io/github/v/release/KnifeLemon/Filee?color=7F77DD&label=release" alt="Latest release"></a>
-  <a href="https://github.com/KnifeLemon/Filee/releases"><img src="https://img.shields.io/github/downloads/KnifeLemon/Filee/total?color=1D9E75" alt="Downloads"></a>
-  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-3C3489" alt="Windows 10 | 11">
-  <img src="https://img.shields.io/badge/Linux-x64%20%7C%20ARM64-3C3489" alt="Linux x64 | ARM64">
-  <img src="https://img.shields.io/badge/macOS-preview-534AB7" alt="macOS preview">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6A62C9" alt="MIT license"></a>
-</p>
+---
 
-<p align="center">
-  <a href="https://trendshift.io/repositories/276987"><img src="https://trendshift.io/api/badge/trendshift/repositories/276987/weekly?language=C%23&v=2" alt="Filee: #1 C# repository of the week on Trendshift" width="250" height="55"></a>
-  <a href="https://trendshift.io/repositories/276987"><img src="https://trendshift.io/api/badge/trendshift/repositories/276987/daily?language=C%23&v=2" alt="Filee: #1 C# repository of the day on Trendshift" width="250" height="55"></a>
-  <a href="https://hellogithub.com/repository/KnifeLemon/Filee" target="_blank"><img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=0847caedd5bd4077a70b90f83afdf83c&claim_uid=jAlIvVMhn0kcEsU" alt="Featured｜HelloGitHub" width="250" height="54" /></a>
-</p>
+## 与原仓库的区别
 
-<p align="center">
-  <b>English</b> ·
-  <a href="docs/readme/README.es.md">Español</a> ·
-  <a href="docs/readme/README.ja.md">日本語</a> ·
-  <a href="docs/readme/README.ko.md">한국어</a> ·
-  <a href="docs/readme/README.zh-CN.md">简体中文</a> ·
-  <a href="docs/readme/README.zh-TW.md">繁體中文</a> ·
-  <a href="docs/readme/README.pl.md">Polski</a> ·
-  <a href="docs/readme/README.hi.md">हिन्दी</a> ·
-  <a href="docs/readme/README.ru.md">Русский</a> ·
-  <a href="docs/readme/README.ar.md">العربية</a> ·
-  <a href="docs/readme/README.fa.md">فارسی</a> ·
-  <a href="docs/readme/README.pt-BR.md">Português (Brasil)</a> ·
-  <a href="docs/readme/README.pt-PT.md">Português (Portugal)</a> ·
-  <a href="docs/readme/README.fr.md">Français</a> ·
-  <a href="docs/readme/README.th.md">ไทย</a> ·
-  <a href="docs/readme/README.tr.md">Türkçe</a> ·
-  <a href="docs/readme/README.id.md">Bahasa Indonesia</a> ·
-  <a href="docs/readme/README.it.md">Italiano</a> ·
-  <a href="docs/readme/README.bn-BD.md">বাংলা</a>
-</p>
+原仓库 Filee 是一个桌面应用（Avalonia），通过拖放文件到甜甜圈菜单完成转换。本分支保留其转换引擎与格式白名单，但做了以下改造：
 
-<table>
-  <tr>
-    <td width="33%" valign="top">
-      <b>Right at your cursor</b><br>
-      No app window to open.
-      The formats appear where you already are, only the ones that make sense for the files you drag.
-    </td>
-    <td width="33%" valign="top">
-      <b>270 formats, no other software</b><br>
-      Images, PDF, Word, Excel, PowerPoint, HWP, e-books, archives, fonts, CAD, 3D models and geospatial data work without Office, Hancom Office or LibreOffice.
-    </td>
-    <td width="33%" valign="top">
-      <b>Stays on your computer</b><br>
-      Nothing is uploaded.
-      Filee works offline and saves the result next to the original.
-    </td>
-  </tr>
-</table>
+| 方面 | 原仓库 | 本分支 |
+|---|---|---|
+| 使用方式 | 桌面客户端，拖放文件 | WorkBuddy 自建菜单打开网页，点击选文件 |
+| 身份 | 无 | OIDC（OpenID Connect，开放身份连接）免登：平台带一次性 code 落地 `/sso`，后端换票验签后下发会话 Cookie |
+| 界面 | Avalonia 原生甜甜圈 | HTML 网格选格式、批量文件列表、任务进度页签、全部下载 zip |
+| 配置 | 应用设置 | 单一 `appsettings.local.json`，一键 `start.sh`，环境变量可覆盖 |
+| 部署 | 安装包 | 常驻本地服务（`https://<host>:<port>`），部署不带数据库，首次运行自动建空库 |
+| 引擎 | 桌面端随安装/下载 | 便携化放在 `engines/`，运行时按平台探测；macOS 已内置 ffmpeg/ghostscript 便携版 |
+| 能力边界 | 完整引擎能力 | Web 白名单收窄：禁用 OCR、语音转录、AI 超分、机器翻译；隐藏当前引擎不支持的少量格式 |
 
-## See it in action
+转换核心仍来自上游：格式注册表、转换引擎（FFmpeg、LibreOffice、Ghostscript、calibre、pandoc、7-Zip、ExifTool、rhwp）、文件魔数校验与并发控制。Web 层新增的代码集中在 `src/Filee.Web/`。
 
-<p align="center">
-  <a href="https://filee.sh"><img src="docs/media/demo-en.webp" alt="Dragging trip.jpg with Ctrl held: a donut of formats opens at the cursor, the file is dropped on PNG, a progress ring completes and trip.png appears" width="820"></a><br>
-  <sub>Watch the 27-second video and try the interactive demo on <a href="https://filee.sh">filee.sh</a></sub>
-</p>
+---
 
-## Install
+## 功能
 
-Download from [Releases](https://github.com/KnifeLemon/Filee/releases/latest).
+- **批量转换**：一次最多 20 个文件，统一转为同一种目标格式
+- **智能过滤**：添加文件后只列出这些文件共同可转换的目标
+- **任务进度**：实时进度、状态中文化、历史记录页签（保留 24 小时）
+- **一次打包下载**：批量任务可下载 zip
+- **格式覆盖**：约 234 种源格式、近 8000 条转换路径，涵盖图片、PDF、文档、表格、演示、文本、音视频、字幕、压缩包等
+- **数据存储**：文件、任务记录与下载链接保留 24 小时后自动清理
 
-<a href="https://apps.microsoft.com/detail/XPDCN05L89WS0C?referrer=appbadge&cid=github&mode=full"><img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Microsoft Store" width="200"></a>
+不支持 OCR（光学字符识别）、语音转录、AI 超分（图像放大重建）、机器翻译，也不做"直接写入本地指定目录"（WorkBuddy iframe 未放通文件系统权限）。
 
-Or with WinGet:
+---
 
-```powershell
-winget install KnifeLemon.Filee
-```
+## 部署
 
-- **Windows 10/11**: run `Filee-<version>-win-Setup.exe`, or unzip the `win-Portable.zip` and run `Filee.exe`.
-  - On a Windows on ARM PC (Settings → System → About says "ARM-based processor"), take `win-arm64-Setup.exe` or `win-arm64-Portable.zip` instead: it runs natively, not under x64 emulation.
-  - Setup is Filee's own installer, in Filee's languages, and needs nothing else on the PC.
-  - It can add the Explorer menu, start at sign-in, the `filee` command and optional engines.
-  - Silent installs take Inno Setup's switches (`/VERYSILENT /SUPPRESSMSGBOXES`).
-- **macOS 13+** (preview): unpack the `osx-arm64` or `osx-x64` package and run `./install.sh`.
-  - Or open the `.dmg` and drag Filee to Applications (the `filee` command comes with `install.sh`).
-  - The build isn't notarized yet, so allow the first start in System Settings → Privacy & Security → **Open Anyway**.
-- **Linux x64/ARM64** (Ubuntu 22.04+): unpack the package and run `./install.sh` (no root, needs Python 3).
-  - Drag gestures need X11.
-    On Wayland, use the drop zone and the file manager's right-click menu.
-
-Portable releases keep their data beside the app; see [portable mode](docs/PORTABLE.md).
-
-Filee shows new releases in its menu and updates itself, keeping your settings and engines.
-After an update, a few slides show what's new.
-
-**Windows: Filee doesn't start (no window, no error)?**
-This happens on Windows 10 that hasn't been updated for a long time, on a PC whose processor supports Hardware-enforced Stack Protection (CET).
-Windows turns that protection on but lacks a part that .NET needs, so Filee and Setup stop right away.
-
-- **Recommended:** install the available Windows updates (the latest cumulative update).
-- **If updating isn't possible:** turning the protection off for Filee alone usually works.
-  Run this in PowerShell as administrator:
-
-```powershell
-Set-ProcessMitigation -Name Filee.exe -Disable UserShadowStack
-Set-ProcessMitigation -Name filee-cli.exe -Disable UserShadowStack
-```
-
-Do the same with Setup's file name (e.g. `Filee-<version>-win-Setup.exe`), or use the portable ZIP, which needs only these two lines.
-To undo it, remove the entries in Windows Security → App & browser control → Exploit protection settings → Program settings.
-
-## Features
-
-- **A donut at the cursor**: hold a key, drag files and drop them on a format.
-  Only formats that fit the files appear.
-- **Straight from the browser**: drag a picture, a link to a file or a download out of Chrome, Edge, Firefox or Safari the same way.
-  - Filee saves it to your Downloads folder (or keeps only the converted file) and converts it.
-  - Links are downloaded without your browser's sign-in.
-- **One toolbar per file type**, arranged by drag and drop, with presets for:
-  - quality, size, DPI
-  - PDF pages and compression
-  - video and audio
-  - output folder and file names
-- **A preset gallery**: *Settings → Presets → Preset gallery* installs presets other people shared on [filee.sh/presets](https://filee.sh/presets), next to yours.
-  *Export for the gallery…* shares your own.
-- **Two sides to every donut**: press <kbd>Tab</kbd> or turn the mouse wheel while it is open to flip it over to less common formats and tools.
-- **Crop before converting**: the Crop slice opens pictures one by one.
-  Drag the frame, pick a ratio, and only that part is saved.
-- **Many files at once**, in parallel.
-  Routes with several steps (HWP → HWPX → DOCX) are found automatically.
-- **Watch folders** convert every file that lands in them.
-- **Recent conversions** on Home, each with a thumbnail: open the result, or open it with another app.
-- **A file list on Home**: turn on *Collect dropped files in a list* in General settings, and files dropped on Home (including those dragged from a browser) wait in a list instead of opening the donut.
-  Drag the cards or use Alt+↑ / Alt+↓ to set the order, Delete to remove one, and *Choose action* to open the donut for the list in that order.
-  The list empties when that conversion completes.
-- **Other ways in**: the right-click menu, a keyboard shortcut, the drop zone and the [`filee` command](#command-line).
-- Light and dark themes with your own accent colour and donut opacity, in English, Español, 日本語, 한국어, 简体中文, 繁體中文, Polski, हिन्दी, Русский, العربية (right to left), Português (Brasil), Français, नेपाली, ไทย, Türkçe, Português (Portugal), Deutsch, Italiano, Bahasa Indonesia, Tiếng Việt, বাংলা, فارسی (right to left) and Монгол.
-
-## Screenshots
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/media/page-toolbar-en.png" alt="Donut toolbar editor with profiles and presets"></td>
-    <td width="50%"><img src="docs/media/page-home-en.png" alt="Home screen with the drop zone and recent conversions"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Arrange the donut by drag and drop, one profile per file type</sub></td>
-    <td align="center"><sub>Home: drop zone and recent conversions</sub></td>
-  </tr>
-</table>
-
-## Formats
-
-| From | To |
-|---|---|
-| **Images**: JPG, PNG, WEBP, AVIF, TIFF, BMP, GIF, APNG, ICO, ICNS, JPEG XL, JPEG 2000, PSD/PSB, TGA, PPM, HEIC, QOI, DDS, PCX, MNG, CUR, …;<br>camera RAW (CR2, CR3, NEF, ARW, DNG, …), DICOM, OpenEXR, HDR, FITS, JPEG XR (Windows), iPhone Live Photo (LIVP), Insta360 INSP, Windows program icons (EXE, DLL), Valve Texture VTF (Source engine, Garry's Mod), animated cursor (ANI) read;<br>GIMP XCF and Paint.NET PDN (layers kept between XCF, PDN and PSD) | any of these (HEIC⁵), GIMP XCF, Paint.NET PDN, VTF, PDF, SVG (traced), resized, grayscale;<br>Live/Motion Photos (iPhone, Android) → their video (MP4, MOV⁵), and a video → Live Photo (iPhone) or Motion Photo (Android)⁵, experimental |
-| **Vector**: SVG, SVGZ, EMF, WMF, AI<br>EPS, PS¹<br>CDR, VSD, CGM, ODG, FODG²<br>Obsidian Canvas (JSON Canvas) read | PDF (vector), PNG and other images,<br>SVG ↔ SVGZ, SVG → DXF/DWG, PDF → EPS/PS¹, SVG → EMF, WMF, ODG²;<br>Obsidian Canvas → its text as Markdown |
-| **PDF** | DOCX, XLSX (tables), HWPX, TXT, PNG, JPG, TIFF, CBZ, PPTX (a picture of each page), SVG², PDF/A¹;<br>merge (in an order you choose first), split (by pages, every N pages or into equal parts), page ranges, compress (smaller PDFs) |
-| **Documents**: DOCX, DOCM, DOTX, EML, Outlook MSG;<br>OFD (Chinese e-invoices, official documents) read<br>DOC, ODT, FODT, OTT, RTF, WPS, WPD, Pages, ClarisWorks, MacWrite, T602, …² | PDF, DOCX, HWPX, EPUB, TXT, HTML;<br>DOCX, HTML tables → XLSX, ODS, CSV;<br>MSG → EML<br>ODT, FODT, OTT² |
-| **Spreadsheets**: XLSX, XLSM, XLS, XLT, ODS, CSV, TSV<br>OTS, FODS, Numbers, ET² | PDF, XLSX, ODS, CSV, TSV, JSON, HWPX, HTML<br>XLT, OTS² |
-| **Presentations**: PPTX, PPTM, POTX, POTM, PPSX<br>PPT, ODP, OTP, FODP, Keynote² | PDF, PNG, JPG, DOCX, HWPX<br>OTP² |
-| **HWP**: HWP, HWPX | PDF, PNG, DOCX, HWPX ↔ HWP, TXT, Markdown, HTML |
-| **Text**: TXT, LOG, script source (PY, PAC, BAT, COMMAND; read, never run), Arduino and Processing sketches (INO, PDE), Markdown, HTML;<br>MHTML (saved web pages) read<br>reStructuredText, LaTeX, Org, AsciiDoc, Typst, MediaWiki, DocBook, Jupyter, Textile, man, OPML³ | UTF-8 TXT, PDF, DOCX, HWPX, EPUB<br>each other, PPTX slides³ |
-| **E-books**: EPUB, KEPUB, MOBI, AZW3, AZW, AZW4, FB2, CBZ, CBR, CB7, HTMLZ, TXTZ<br>LIT, LRF, CHM, PDB, …⁴ | PDF, EPUB, KEPUB (Kobo), DOCX, TXT, HTML, HWPX<br>MOBI, AZW3⁴ |
-| **Video**⁵: MP4, MOV, MKV, WEBM, AVI, WMV, FLV, MPEG, Video CD (DAT), TS, M2TS, 3GP, OGV, VOB, …;<br>Wisenet WAVE / Nx Witness exports (NOV) read | MP4 (H.264, HEVC, AV1), WEBM, MOV, MKV, AVI, GIF, APNG, MP3, M4A, 720p, split into parts;<br>subtitle tracks kept (MKV, MP4, MOV, WebM);<br>subtitles (SRT, ASS, WebVTT) |
-| **Audio**⁵: MP3, M4A, AAC, WAV, FLAC, OGG, OPUS, WMA, AIFF, AMR, APE, WavPack, TTA, DSD (DSF, DFF), DTS, AC3, E-AC3, …;<br>tracker modules (XM, IT, S3M) read | MP3, M4A (AAC, ALAC), M4R (iPhone ringtone), WAV, FLAC, OGG, OPUS, AAC, WavPack, TTA, W64, AC3, E-AC3 |
-| **Subtitles**: SRT, ASS/SSA, WebVTT, SAMI (SMI), LRC, KRC, TTML, MicroDVD, SCC | each other as UTF-8 (Korean CP949 files read correctly) |
-| **Archives**: ZIP, ANSYS Workbench (WBPZ), 7Z, RAR, TAR, TAR.GZ, TAR.BZ2, TAR.XZ, GZ, ISO, CAB, DMG, ALZ, EGG, …;<br>JAR, NuGet (NUPKG), Android packages (APKS, XAPK, APKM, AAB), Adobe extensions (ZXP) read | extract, ZIP, 7Z, TAR, TAR.GZ;<br>any files → one ZIP; folders → ZIP, ISO (Joliet or UDF 2.01) |
-| **CAD**: DWG, DXF<br>Gerber PCB layers (GBR, GTL, GBL, GTO, …) read;<br>G-code of 3D printers and CNC machines (GCODE, GCO, NGC) read | PDF, SVG, PNG, DWG ↔ DXF;<br>G-code → toolpath (from above or isometric) or the slicer's preview |
-| **Fonts**: TTF, OTF, WOFF, WOFF2, EOT;<br>FON (Windows bitmap fonts) read | each other;<br>FON → one font per size |
-| **Data**: JSON, JSON Lines, YAML, TOML, XML<br>vCard, iCalendar | each other, CSV and XLSX (tables);<br>vCard, iCalendar ↔ CSV |
-| **3D models**: GLB, glTF, STL, OBJ (+ MTL), 3MF, PLY;<br>FBX read | each other, PNG preview |
-| **Geospatial vectors**: Shapefile, GeoJSON, KML, KMZ, GPX<br>CSV with coordinates; Garmin FIT, OpenStreetMap (.osm) read | each other and CSV / XLSX / JSON;<br>projected data (UTM, Web Mercator, Lambert, Albers) comes out as WGS 84 longitude / latitude |
-
-Unmarked formats work out of the box, without Office, Hancom Office or LibreOffice.
-Marked ones need an optional engine, downloaded only when needed: ¹ Ghostscript, ² LibreOffice, ³ Pandoc, ⁴ calibre, ⁵ FFmpeg ([details](docs/ENGINES.md)).
-
-## Command line
-
-The `filee` command uses the same engines and presets as the app (Setup or `install.sh` adds it).
-
-```
-filee convert photo.heic --to jpg
-filee convert *.png --to webp --quality 80 -o converted
-filee watch D:\Inbox --to pdf --move-originals
-```
-
-Every command and option: [filee.sh/cli](https://filee.sh/cli/) or `filee help`.
-
-## Development
-
-Build with the .NET 10 SDK on Windows, macOS or Linux:
+环境：Linux 或 macOS，安装 .NET SDK 10。
 
 ```bash
-git clone https://github.com/KnifeLemon/Filee.git
+git clone https://github.com/Fab-Vermilion/Filee.git
 cd Filee
-pwsh build/fetch-engines.ps1 -Only rhwp,pandoc   # optional engines
-dotnet run --project src/Filee.App
-dotnet test
+git checkout wbapp
+cp appsettings.local.json.example appsettings.local.json
+# 编辑 appsettings.local.json：填监听地址、免登回调地址、Client ID/Secret、证书等
+./start.sh
 ```
 
-[Architecture](docs/ARCHITECTURE.md) · [Engines](docs/ENGINES.md) · [Adding a converter](docs/ADDING-A-CONVERTER.md) · [Adding a language](docs/ADDING-A-LANGUAGE.md) · [Contributing](CONTRIBUTING.md)
+`start.sh` 会读取配置并启动服务。首次运行自动创建空数据库（也可先跑 `./init-db.sh` 显式建库）。数据库只存任务记录，不含任何密钥或 SSO 配置。
 
-Pull requests are welcome.
-If Filee saves you some clicks, a ⭐ helps other people find it.
+### 配置要点
 
-## Code signing policy
+- `Server.urls`：监听地址；`Server.redirectUri`：免登回调地址，两者必须同域名同端口
+- `Sso.*`：issuer、audience、clientId、clientSecret 从 WorkBuddy 自建应用的 `Client_profile` 获取
+- `Tls.pfxPath` / `password`：HTTPS 证书（WorkBuddy iframe 要求 HTTPS）
+- 完整字段说明见 `appsettings.local.json.example` 顶部；更详细的部署说明见 `DEPLOY.md`
 
-Filee is developed and published by **Myeonggu Kim** ([KnifeLemon](https://github.com/KnifeLemon)).
+### WorkBuddy 侧配置
 
-- Windows releases are signed with a [Certum](https://www.certum.eu/) open source code signing certificate issued to Myeonggu Kim ("Open Source Developer MYEONGGU KIM").
-  - Releases before it, up to 2.0.0, are not signed.
-  - SmartScreen can still warn about a new release until it has been downloaded enough ("More info" → "Run anyway").
-- macOS packages are ad-hoc signed and not notarized.
-- Only files built by this repository's GitHub Actions release workflow are signed, and every release is signed and approved by hand.
-  - Libraries and programs their makers signed (.NET, SkiaSharp, ImageMagick, the Microsoft C++ runtime …) keep their own signatures; bundled ones that come unsigned (rhwp, 7-Zip and most libraries) are signed with Filee's certificate, as part of Filee.
+在 WorkBuddy 控制台创建自建应用，把免登回调地址填为配置里的 `Server.redirectUri`，然后把菜单绑定到该应用。
 
-### Privacy policy
+---
 
-Filee converts files on your own computer and never uploads them.
-It collects no usage data and sends no telemetry.
-It connects to the internet only:
+## 引擎
 
-- to ask GitHub (`api.github.com`) whether a newer release exists, shortly after start and then every few hours.
-  Turn this off in Settings → About ("Check for updates automatically").
-- to download the conversion engines you choose to install, from the official locations pinned in [`engines.json`](src/Filee.Engines/Infrastructure/engines.json), and the text recognition (OCR) languages a preset uses, pinned in [`ocr-languages.json`](src/Filee.Engines/Infrastructure/ocr-languages.json).
-- when you click a link, which opens your web browser.
+`engines/` 目录放置便携版转换引擎，运行时优先使用这里的副本，其次才是系统 PATH。macOS 上已内置 FFmpeg 9.0.2（全编码器）与 Ghostscript 10.08.0，以及 LibreOffice、calibre、pandoc、7-Zip、ExifTool、rhwp。
 
-## Sponsor
+部署到 Linux 时，这些 macOS 二进制需要换成 Linux 版本：FFmpeg、calibre、pandoc、ExifTool、7-Zip、rhwp 由项目按平台自动下载；LibreOffice 与 Ghostscript 在 Linux 需系统安装。
 
-Filee is free and stays free.
-If you'd like to support it, pick whichever way suits you ([Fairy](https://fairy.hada.io/@filee) takes Korean cards and easy-pay).
+---
 
-**Your name or logo here.**
-Monthly backers are listed here by name, and sponsors get their logo here and on Filee's About page.
-One-time supporters can ask to be listed too.
+## 许可证
 
-<!-- sponsors: src/Filee.App/Assets/Sponsors/sponsors.json -->
-
-<p align="center">
-  <a href="https://github.com/sponsors/KnifeLemon"><img src="https://img.shields.io/badge/GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors"></a>
-  <a href="https://patreon.com/KnifeLemon"><img src="https://img.shields.io/badge/Patreon-000000?style=for-the-badge&logo=patreon&logoColor=white" alt="Patreon"></a>
-  <a href="https://ko-fi.com/knifelemon"><img src="https://img.shields.io/badge/Ko--fi-FF6433?style=for-the-badge&logo=kofi&logoColor=white" alt="Ko-fi"></a>
-  <a href="https://paypal.me/knifelemon"><img src="https://img.shields.io/badge/PayPal-002991?style=for-the-badge&logo=paypal&logoColor=white" alt="PayPal"></a>
-  <a href="https://fairy.hada.io/@filee"><img src="https://img.shields.io/badge/Fairy-2E9E6B?style=for-the-badge" alt="Fairy"></a>
-</p>
-
-## License
-
-MIT, © 2026 Myeonggu Kim (KnifeLemon) and Filee contributors.
-Bundled third-party components keep their own licenses, listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
-
-<p align="center">
-  <a href="https://star-history.com/#KnifeLemon/Filee&Date"><img src="https://api.star-history.com/svg?repos=KnifeLemon/Filee&type=Date" alt="Star history" width="600"></a>
-</p>
+MIT License — 见 [LICENSE](LICENSE)。版权归原作者 Myeonggu Kim (KnifeLemon) 及 Filee 贡献者；本分支的改动同样以 MIT 开源。

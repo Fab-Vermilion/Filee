@@ -26,6 +26,11 @@ TestResults/
 *.trx
 coverage*/
 
+# This fork ships only the Web application. Upstream docs/tests are not part of it
+# and may carry environment-specific details: keep them local, not in the release.
+docs/
+tests/
+
 # macOS AppleDouble companion files on exFAT volumes (interfere with git/build)
 ._*
 

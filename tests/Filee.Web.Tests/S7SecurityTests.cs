@@ -60,7 +60,6 @@ public sealed class S7SecurityTests
 
         Assert.Equal(500L * 1024 * 1024, limits.MaxFileBytes);
         Assert.Equal(4, limits.MaxConcurrency);
-        Assert.Equal(TimeSpan.FromMinutes(10), limits.JobTimeout);
         Assert.Equal(150, limits.SseThrottleMs);
         Assert.Equal(200, limits.SseBufferSize);
         Assert.Equal(15, limits.SseHeartbeatSeconds);

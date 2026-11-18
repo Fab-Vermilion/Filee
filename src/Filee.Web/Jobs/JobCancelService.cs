@@ -10,8 +10,12 @@ public sealed class JobCancelService(WebJobRegistry registry, JobStore store)
 {
     public CancelResult Cancel(string webId)
     {
-        var job = registry.Get(webId) ?? throw new KeyNotFoundException("Web job not found.");
         var record = store.Get(webId) ?? throw new KeyNotFoundException("Job record not found.");
+        // After a restart the in-memory job is gone (history is read-only). Nothing to cancel:
+        // report it honestly instead of throwing a 500.
+        var job = registry.Get(webId);
+        if (job is null)
+            return new CancelResult(webId, record.Status, CancellationRequested: false);
         job.Cancel();
         return new CancelResult(webId, record.Status, job.CancellationToken.IsCancellationRequested);
     }

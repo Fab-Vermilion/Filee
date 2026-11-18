@@ -26,6 +26,9 @@ TestResults/
 *.trx
 coverage*/
 
+# macOS AppleDouble companion files on exFAT volumes (interfere with git/build)
+._*
+
 # OS
 Thumbs.db
 .DS_Store

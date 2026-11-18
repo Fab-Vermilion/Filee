@@ -22,6 +22,19 @@ public sealed class JobSubmissionService(
 {
     public WebStoragePaths Storage { get; } = storage;
 
+    // ZIP / EPUB / ODT / DOCX ... all share the "PK\x03\x04" signature. Only those are handled by
+    // ArchiveGuard (it opens a ZipArchive); 7z/rar/tar are validated by the engine's own guard.
+    private static bool IsZip(Stream stream)
+    {
+        if (!stream.CanSeek) return false;
+        var pos = stream.Position;
+        var header = new byte[4];
+        var read = stream.Read(header, 0, header.Length);
+        stream.Position = pos;
+        return read == 4 && header[0] == 0x50 && header[1] == 0x4B
+            && header[2] == 0x03 && header[3] == 0x04;
+    }
+
     public async Task<JobRecord> SubmitAsync(
         SessionIdentity identity,
         string? target,
@@ -64,9 +77,24 @@ public sealed class JobSubmissionService(
             UploadGuard.Validate(name, input, limits);
             input.Position = 0;
 
-            var savedPath = Path.Combine(uploadDir, name);
-            await using var output = File.Create(savedPath);
-            await input.CopyToAsync(output);
+            // ZIP-based uploads get a metadata-only bomb/traversal check (no entry is expanded).
+            if (IsZip(input))
+            {
+                input.Position = 0;
+                try { ArchiveGuard.Validate(input); }
+                catch (InvalidOperationException)
+                {
+                    throw new UploadException("bad_magic");
+                }
+            }
+            input.Position = 0;
+
+            // Unique on-disk name: two different files can share a display name; never overwrite.
+            var savedName = index == 0 ? name
+                : $"{Path.GetFileNameWithoutExtension(name)}_{index + 1}{Path.GetExtension(name)}";
+            var savedPath = Path.Combine(uploadDir, savedName);
+            await using (var output = File.Create(savedPath))
+                await input.CopyToAsync(output);
             sources.Add(savedPath);
         }
 

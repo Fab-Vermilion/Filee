@@ -29,6 +29,9 @@ public sealed class S6SsoUploadTests
         Assert.True(SsoLandingGuard.IsAllowedTarget(options, "https://client.example.test/app", Issuer));
         Assert.False(SsoLandingGuard.IsAllowedTarget(options, "https://evil.example.test/app", Issuer));
         Assert.False(SsoLandingGuard.IsAllowedTarget(options, "//evil.example.test/app", Issuer));
+        // Backslashes normalise to slashes in browsers: "/\evil.com" becomes "//evil.com".
+        Assert.False(SsoLandingGuard.IsAllowedTarget(options, "/\\evil.example.test/app", Issuer));
+        Assert.False(SsoLandingGuard.IsAllowedTarget(options, "/\\/evil.example.test/app", Issuer));
         Assert.Equal("https://127.0.0.1:18799/sso", options.EffectiveRedirectUri);
     }
 

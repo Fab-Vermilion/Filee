@@ -48,8 +48,6 @@
     "_maxFileBytes": "单文件大小上限（字节），默认 500MB。环境变量：FILEE_WEB_MAX_FILE_BYTES",
     "maxConcurrency": 4,
     "_maxConcurrency": "最大并发任务数。环境变量：FILEE_WEB_MAX_CONCURRENCY",
-    "jobTimeoutMinutes": 10,
-    "_jobTimeoutMinutes": "单任务超时（分钟）。环境变量：FILEE_WEB_JOB_TIMEOUT_MINUTES",
     "sseThrottleMs": 150,
     "_sseThrottleMs": "进度事件节流（毫秒）。环境变量：FILEE_WEB_SSE_THROTTLE_MS",
     "sseBufferSize": 200,

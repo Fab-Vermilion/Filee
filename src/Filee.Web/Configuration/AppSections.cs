@@ -45,7 +45,7 @@ public sealed record AppSsoConfig(
 
 /// <summary>File, concurrency, timeout and SSE budgets; previously FILEE_WEB_* environment variables.</summary>
 public sealed record AppLimitsConfig(
-    long MaxFileBytes, int MaxConcurrency, int JobTimeoutMinutes,
+    long MaxFileBytes, int MaxConcurrency,
     int SseThrottleMs, int SseBufferSize, int SseHeartbeatSeconds, int LoWorkers)
 {
     public static AppLimitsConfig From(JsonElement? root)
@@ -54,7 +54,6 @@ public sealed record AppLimitsConfig(
         return new AppLimitsConfig(
             MaxFileBytes: AppConfig.Long(s, "maxFileBytes", "MaxFileBytes", "FILEE_WEB_MAX_FILE_BYTES", 500L * 1024 * 1024),
             MaxConcurrency: AppConfig.Int(s, "maxConcurrency", "MaxConcurrency", "FILEE_WEB_MAX_CONCURRENCY", 4),
-            JobTimeoutMinutes: AppConfig.Int(s, "jobTimeoutMinutes", "JobTimeoutMinutes", "FILEE_WEB_JOB_TIMEOUT_MINUTES", 10),
             SseThrottleMs: AppConfig.Int(s, "sseThrottleMs", "SseThrottleMs", "FILEE_WEB_SSE_THROTTLE_MS", 150),
             SseBufferSize: AppConfig.Int(s, "sseBufferSize", "SseBufferSize", "FILEE_WEB_SSE_BUFFER_SIZE", 200),
             SseHeartbeatSeconds: AppConfig.Int(s, "sseHeartbeatSeconds", "SseHeartbeatSeconds", "FILEE_WEB_SSE_HEARTBEAT_SECONDS", 15),

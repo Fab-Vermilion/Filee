@@ -18,9 +18,9 @@ public sealed class ArchiveBundleTests
             File.WriteAllText(a, "AAA", Encoding.UTF8);
             File.WriteAllText(b, "BBB", Encoding.UTF8);
 
-            var bytes = ArchiveBundle.Build([a, b]);
+            var stream = ArchiveBundle.Build([a, b]);
 
-            using var zip = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read);
+            using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
             Assert.Equal(2, zip.Entries.Count);
             Assert.Contains("first.pdf", zip.Entries.Select(e => e.FullName));
             Assert.Contains("second.pdf", zip.Entries.Select(e => e.FullName));
@@ -42,9 +42,9 @@ public sealed class ArchiveBundleTests
             File.WriteAllText(a, "1");
             File.WriteAllText(b, "2");
 
-            var bytes = ArchiveBundle.Build([a, b]);
+            var stream = ArchiveBundle.Build([a, b]);
 
-            using var zip = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read);
+            using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
             var names = zip.Entries.Select(e => e.FullName).ToArray();
             Assert.Equal(2, names.Length);
             Assert.Contains("report.pdf", names);
@@ -56,8 +56,8 @@ public sealed class ArchiveBundleTests
     [Fact]
     public void Build_SkipsMissingPaths()
     {
-        var bytes = ArchiveBundle.Build(["/no/such/file.pdf", ""]);
-        using var zip = new ZipArchive(new MemoryStream(bytes), ZipArchiveMode.Read);
+        var stream = ArchiveBundle.Build(["/no/such/file.pdf", ""]);
+        using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
         Assert.Empty(zip.Entries);
     }
 }

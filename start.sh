@@ -56,4 +56,4 @@ PY
 )"
 
 echo "启动 Filee.Web (config: ${CONFIG})"
-exec "$DOTNET" run --project "$ROOT/src/Filee.Web/Filee.Web.csproj" -c Debug
+exec "$DOTNET" run --project "$ROOT/src/Filee.Web/Filee.Web.csproj" -c Release

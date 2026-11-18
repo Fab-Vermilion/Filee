@@ -1,4 +1,6 @@
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Text.Json.Serialization;
 using Filee.Core.Conversion;
 using Filee.Core.Formats;
@@ -87,7 +89,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddSingleton(config);
 builder.Services.AddSingleton(storage);
 builder.Services.AddHostedService(sp => new JobDirectoryCleaner(
-    storage,
+    storage, jobStore,
     TimeSpan.FromHours(config.Retention.FileAndRecordHours),
     TimeSpan.FromHours(config.Retention.CleanupIntervalHours),
     sp.GetRequiredService<ILogger<JobDirectoryCleaner>>()));
@@ -148,7 +150,10 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/ops/health", async Task<IResult> (HttpContext context, OpsHealthService ops, AppConfig appConfig) =>
 {
     var expected = appConfig.OpsToken;
-    if (string.IsNullOrEmpty(expected) || context.Request.Headers["X-Ops-Token"].ToString() != expected)
+    var provided = context.Request.Headers["X-Ops-Token"].ToString();
+    if (string.IsNullOrEmpty(expected)
+        || !CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(provided), Encoding.UTF8.GetBytes(expected)))
         return ApiProblem.Unauthenticated();
     return Results.Ok(await ops.GetAsync());
 });
@@ -324,8 +329,15 @@ app.MapGet("/api/download/all", (string? token, HttpContext context, SessionServ
     if (paths.Length == 0)
         return ApiProblem.Expired();
 
-    var archive = ArchiveBundle.Build(paths);
-    return Results.File(archive, "application/zip", $"filee-{jobId[..Math.Min(8, jobId.Length)]}.zip");
+    try
+    {
+        var archive = ArchiveBundle.Build(paths);
+        return Results.File(archive, "application/zip", $"filee-{jobId[..Math.Min(8, jobId.Length)]}.zip");
+    }
+    catch (InvalidOperationException)
+    {
+        return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+    }
 });
 
 app.UseDefaultFiles();

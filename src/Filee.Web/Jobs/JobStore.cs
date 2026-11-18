@@ -64,7 +64,8 @@ public sealed class JobStore
                 status = excluded.status,
                 progress = excluded.progress,
                 created_at = excluded.created_at,
-                finished_at = excluded.finished_at;
+                finished_at = excluded.finished_at,
+                output_files = excluded.output_files;
             """;
         AddParameters(command, record);
         command.ExecuteNonQuery();
@@ -94,6 +95,16 @@ public sealed class JobStore
         command.Parameters.AddWithValue("$webId", webId);
         command.Parameters.AddWithValue("$outputFiles", JsonSerializer.Serialize(names));
         command.ExecuteNonQuery();
+    }
+
+    /// <summary>Removes a job's summary when its files are reclaimed. Returns true if a row was deleted.</summary>
+    public bool Delete(string webId)
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM jobs WHERE web_id = $webId;";
+        command.Parameters.AddWithValue("$webId", webId);
+        return command.ExecuteNonQuery() > 0;
     }
 
     public JobRecord? Get(string webId)

@@ -5,27 +5,40 @@ namespace Filee.Web.Streaming;
 /// <summary>Builds an in-memory zip of a job's converted outputs for one-click "download all".</summary>
 public static class ArchiveBundle
 {
+    // Guard against a batch of large outputs exhausting server memory. Caller disposes the returned stream.
+    public const long MaxTotalBytes = 1024L * 1024 * 1024; // 1 GiB
+
     /// <summary>
     /// Zips the given files. Entry names are bare file names, de-duplicated so two outputs with the
-    /// same name never collide inside the archive.
+    /// same name never collide inside the archive. Returns a positioned stream (no ToArray copy).
+    /// Throws InvalidOperationException if the total output exceeds <see cref="MaxTotalBytes"/>.
     /// </summary>
-    public static byte[] Build(IEnumerable<string> paths)
+    public static MemoryStream Build(IEnumerable<string> paths)
     {
-        using var stream = new MemoryStream();
-        using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        var stream = new MemoryStream();
+        try
         {
-            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var path in paths)
+            using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
             {
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) continue;
-                var name = UniqueName(Path.GetFileName(path), used);
-                var entry = zip.CreateEntry(name, CompressionLevel.Fastest);
-                using var output = entry.Open();
-                using var input = File.OpenRead(path);
-                input.CopyTo(output);
+                var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                long total = 0;
+                foreach (var path in paths)
+                {
+                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) continue;
+                    total += new FileInfo(path).Length;
+                    if (total > MaxTotalBytes)
+                        throw new InvalidOperationException("Archive total exceeds the size budget.");
+                    var name = UniqueName(Path.GetFileName(path), used);
+                    var entry = zip.CreateEntry(name, CompressionLevel.Fastest);
+                    using var output = entry.Open();
+                    using var input = File.OpenRead(path);
+                    input.CopyTo(output);
+                }
             }
+            stream.Position = 0;
+            return stream;
         }
-        return stream.ToArray();
+        catch { stream.Dispose(); throw; }
     }
 
     private static string UniqueName(string name, HashSet<string> used)

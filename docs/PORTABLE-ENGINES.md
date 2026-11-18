@@ -1,5 +1,13 @@
 # 第三方引擎的便携式（engines 目录）部署
 
+## 当前状态（2026-11-18，以此为准）
+
+- `engines/ffmpeg/bin/` 已放置 portable FFmpeg 9.0.2（**boul2gom 全编码器构建**，含 libwebp_anim/libtheora/libvorbis 等）+ 配套 ffprobe；mp4→webp 真实转换已验证通过。
+- `engines/ghostscript/` 已放置 portable Ghostscript 10.08.0（conda-forge）。
+- `engines/libreoffice/`（完整 .app）、`engines/calibre/`（完整 .app）、`engines/pandoc/`、`engines/7zip/`、`engines/exiftool/`、`engines/rhwp/` 均为 portable 布局。
+- **部署到 Linux 时这些 macOS（Mach-O/.app）二进制必须换成 Linux 版本**：ffmpeg/calibre/pandoc/exiftool/7zip/rhwp 由项目内嵌的 `engines.json` 按平台自动下载；LibreOffice/Ghostscript 在 Linux 无官方下载，需系统安装（PATH 发现）。
+- 下文「为什么这次没自动装上」「FFmpeg 构建选型调查」等段落是**历史调查记录**，解释为何选这些版本；其中「engines/ffmpeg 为空/回退 homebrew」等描述是当时的状态，不是现状。
+
 ## 结论
 
 可以。Filee 的 Web 自建应用**原生支持把所有可选第三方引擎放在 `engines/` 目录**，完全不依赖 `brew` / `npm` / 系统安装。这正是项目既有的设计。

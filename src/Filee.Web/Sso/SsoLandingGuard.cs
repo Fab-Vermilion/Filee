@@ -13,7 +13,13 @@ public static class SsoLandingGuard
             return false;
 
         // Same-origin relative paths are safe; protocol-relative URLs are not.
-        if (target.StartsWith('/') && !target.StartsWith("//"))
+        // Browsers normalise backslashes to slashes in URLs, so "/\evil.com" and "/\\evil.com"
+        // become protocol-relative "//evil.com" — reject any path starting with a slash followed
+        // by another slash OR a backslash.
+        if (target.StartsWith('/')
+            && target.Length > 1
+            && target[1] != '/'
+            && target[1] != '\\')
             return true;
 
         if (!Uri.TryCreate(target, UriKind.Absolute, out var uri))

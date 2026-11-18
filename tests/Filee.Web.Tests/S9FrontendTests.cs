@@ -181,7 +181,9 @@ public sealed class S9FrontendTests
         Assert.Contains("AGPL", manual);
         Assert.Contains("<table", manual);
         Assert.Contains("<details", manual);
-        Assert.DoesNotContain("https://", manual); // no external dependency
+        // No external *resources* (CDN scripts/styles). Plain hyperlinks to the source repo are fine.
+        Assert.DoesNotContain("src=\"http", manual, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("@import url(http", manual, StringComparison.OrdinalIgnoreCase);
     }
 
     // ---- 用户实测 2026-11-17 16:43 五项改动 ----

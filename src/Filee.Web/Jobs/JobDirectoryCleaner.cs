@@ -7,11 +7,11 @@ namespace Filee.Web.Jobs;
 /// temporary-file TTL cleanup. File/record/token retention are configured in AppConfig.Retention (default 24h
 /// each) so a user can finish a download within the window, then data is reclaimed on an always-on server.
 /// </summary>
-public sealed class JobDirectoryCleaner(WebStoragePaths storage, TimeSpan ttl, TimeSpan interval, ILogger<JobDirectoryCleaner> logger)
+public sealed class JobDirectoryCleaner(WebStoragePaths storage, JobStore store, TimeSpan ttl, TimeSpan interval, ILogger<JobDirectoryCleaner> logger)
     : BackgroundService
 {
-    public JobDirectoryCleaner(WebStoragePaths storage, ILogger<JobDirectoryCleaner> logger)
-        : this(storage, WebRetention.FileAndRecordTtl, WebRetention.CleanupInterval, logger) { }
+    public JobDirectoryCleaner(WebStoragePaths storage, JobStore store, ILogger<JobDirectoryCleaner> logger)
+        : this(storage, store, WebRetention.FileAndRecordTtl, WebRetention.CleanupInterval, logger) { }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -43,7 +43,12 @@ public sealed class JobDirectoryCleaner(WebStoragePaths storage, TimeSpan ttl, T
                         ? Directory.GetLastWriteTimeUtc(dir)
                         : files.Max(File.GetLastWriteTimeUtc);
                     if (last >= cutoff.UtcDateTime) continue;
+                    var webId = Path.GetFileName(dir);
                     Directory.Delete(dir, recursive: true);
+                    // Files and their summary record share the same lifetime: once the output dir
+                    // is reclaimed the history row is no longer usable (no downloadable files).
+                    if (string.Equals(Path.GetFileName(root), Path.GetFileName(storage.Output), StringComparison.Ordinal))
+                        store.Delete(webId);
                     removed++;
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

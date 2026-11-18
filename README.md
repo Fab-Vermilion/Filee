@@ -13,9 +13,17 @@
   <a href="https://www.linkedin.com/company/filee-sh/"><b>LinkedIn</b></a> ·
   <a href="#install">Install</a> ·
   <a href="#command-line">Command line</a> ·
-  <a href="#development">Development</a> ·
-  <a href="DEPLOY.md"><b>WorkBuddy 自建应用部署与配置</b></a>
+  <a href="#development">Development</a>
 </p>
+
+> **WorkBuddy 自建 Web 应用版本（本分支 `workbuddy-webapp`）**：在保留 Filee 转换引擎的基础上，新增了可通过 WorkBuddy 自建菜单免登访问的 Web 应用（上传 → 选格式 → 转换 → 下载）。源码见 <https://github.com/KnifeLemon/Filee/tree/workbuddy-webapp>。
+>
+> - 部署与配置：[DEPLOY.md](DEPLOY.md)（单一 JSON 配置、一键启动、空库自动构建）
+> - 使用手册：应用内右上角「使用手册」，或 [manual.html](src/Filee.Web/wwwroot/manual.html)
+> - 便携引擎说明：[PORTABLE-ENGINES.md](docs/PORTABLE-ENGINES.md)
+> - 转换能力矩阵与复核：[docs/matrix/REPORT.md](docs/matrix/REPORT.md)（最终复核结论见 [TRUE-FAILURES.md](docs/matrix/TRUE-FAILURES.md)）
+>
+> 本版本不改变上游 Filee 桌面端；`main`/上游仍为原项目。协议沿用上游 MIT。
 
 <p align="center">
   <a href="https://github.com/KnifeLemon/Filee/actions/workflows/ci.yml"><img src="https://github.com/KnifeLemon/Filee/actions/workflows/ci.yml/badge.svg" alt="CI"></a>

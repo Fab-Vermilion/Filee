@@ -13,4 +13,4 @@ DOTNET="/usr/local/share/dotnet/dotnet"
 find "$ROOT/src" -name '._*.cs' -delete 2>/dev/null || true
 
 echo "初始化 Filee 数据库（仅建表，不清空已有数据）"
-"$DOTNET" run --project "$ROOT/src/Filee.Web/Filee.Web.csproj" -c Debug -- --init-db
+"$DOTNET" run --project "$ROOT/src/Filee.Web/Filee.Web.csproj" -c Release -- --init-db
